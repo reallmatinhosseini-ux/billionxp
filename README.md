@@ -100,3 +100,4 @@ Then set `PRICE_PROVIDER` to whatever key you introduce and propagate `PRICE_API
 - **`Publish failed … missing channel`** — fill `VIP_CHANNEL_ID` / `FREE_CHANNEL_ID`.
 - **`FREE_CTA_USERNAME` errors** — set the username slug or publish only via VIP-only buttons.
 - **No TP/SL updates** — ensure the signal row is active (`/active`). Channels must permit thread replies (`send_message(..., reply_parameters=...)` will fail silently if Telegram rejects them — check stdout logs).
+# billionxp-bot
