@@ -31,6 +31,8 @@ class Settings:
     check_interval_seconds: float
     price_provider: str
     price_api_key: str
+    openai_api_key: str
+    openai_model: str
     sqlite_path: str = "signals.db"
 
 
@@ -53,5 +55,7 @@ def load_settings() -> Settings:
         check_interval_seconds=interval,
         price_provider=(os.getenv("PRICE_PROVIDER", "mock") or "mock").strip().lower(),
         price_api_key=(os.getenv("PRICE_API_KEY", "") or "").strip(),
+        openai_api_key=(os.getenv("OPENAI_API_KEY", "") or "").strip(),
+        openai_model=(os.getenv("OPENAI_MODEL", "gpt-4.1-mini") or "gpt-4.1-mini").strip(),
         sqlite_path=(os.getenv("SQLITE_PATH", "signals.db") or "signals.db").strip(),
     )

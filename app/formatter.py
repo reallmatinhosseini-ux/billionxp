@@ -6,6 +6,9 @@ from app.parser import ParsedSignal
 _TP_ICONS_SELL = ("✅", "✅✅", "✅✅✅", "✅✅✅✅", "▪✅✅✅✅✅")
 _TP_ICONS_BUY = ("✅", "✅✅", "✅✅✅", "✅✅✅✅", "▪✅✅✅✅✅")
 
+_ELITE_DIVIDER = "━━━━━━━━━━━━━━━"
+_ELITE_FOOTER = "🔥 Stay disciplined — consistency beats emotion."
+
 
 def fmt_pair_title(direction: str, symbol_display: str) -> str:
     d = direction.upper()
@@ -52,6 +55,65 @@ def format_signal_standard(sig: ParsedSignal) -> str:
         sl_line,
         "",
         footer,
+    ]
+    return "\n".join(blocks)
+
+
+def format_signal_elite(
+    sig: ParsedSignal,
+    *,
+    market_insight: str = "",
+    risk_management: str = "",
+) -> str:
+    """
+    Elite VIP-styled signal message.
+    Always includes the required footer line at the bottom.
+    """
+    sym = sig.symbol.upper()
+    symbol_display = sym
+    direction = sig.direction.upper()
+    order_type = "LIMIT" if sig.entry_min != sig.entry_max else "MARKET"
+
+    title = f"🏆 {symbol_display} • {direction} {order_type}"
+
+    entry_line = (
+        f"➜ {sig.entry_min:g} - {sig.entry_max:g}"
+        if sig.entry_min != sig.entry_max
+        else f"➜ {sig.entry_min:g}"
+    )
+
+    icons = _TP_ICONS_BUY if direction == "BUY" else _TP_ICONS_SELL
+    tp_lines: list[str] = []
+    ordered = [(i, sig.tp_levels[i]) for i in sig.tp_order]
+    for idx, price in ordered:
+        icon = icons[(idx - 1) % len(icons)]
+        tp_lines.append(f"➜ TP{idx} • {price:g} {icon}")
+
+    if not tp_lines:
+        tp_lines.append("➜ TP1 • (not provided)")
+
+    insight = (market_insight or "").strip()
+    risk = (risk_management or "").strip()
+    if not risk:
+        risk = "Recommended risk: 0.5% - 2% per trade."
+
+    blocks = [
+        _ELITE_DIVIDER,
+        title,
+        _ELITE_DIVIDER,
+        "📍 Entry Zone",
+        entry_line,
+        "🎯 Profit Targets",
+        *tp_lines,
+        "🛡 Stop Loss",
+        f"➜ {sig.sl:g}",
+        "📊 Market Insight",
+        f"➜ {insight}" if insight else "➜ (no notes provided)",
+        "⚠️ Risk Management",
+        f"➜ {risk}",
+        _ELITE_DIVIDER,
+        _ELITE_FOOTER,
+        _ELITE_DIVIDER,
     ]
     return "\n".join(blocks)
 

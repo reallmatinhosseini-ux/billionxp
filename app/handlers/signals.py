@@ -6,11 +6,12 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
 
-from app.formatter import format_signal_standard
+from app.formatter import format_signal_elite
 from app.keyboards import publish_destination_keyboard
 from app.middlewares import AppContext
 from app.parser import ParsedSignal, parse_signal
 from app.replies import message_answer_logged
+from services.ai_signal import parse_signal_via_openai
 from services import publisher as publish_service
 from utils.logger import get_logger
 
@@ -72,21 +73,57 @@ async def ingest_signal(
 ) -> None:
     log.info("RAW SIGNAL handler called chat=%s user=%s", message.chat.id, message.from_user.id)
 
-    parsed_ok, errors = parse_signal(message.text or "")
+    raw_text = message.text or ""
+    parsed_ok, errors = parse_signal(raw_text)
+    market_insight = ""
+    risk_management = ""
+
+    # Fallback to OpenAI when local parsing fails.
     if parsed_ok is None:
-        log.info("PARSE FAILED: %s", errors)
-        bullets = "\n".join(f"- {e}" for e in errors)
-        explanation = (
-            "Could not parse this as a signal.\n\n"
-            "Include BUY/SELL, entry zone (two prices), SL, and take profits.\n\n"
-            "Details:\n" + bullets
-        )
-        await message_answer_logged(message, explanation)
-        return
+        try:
+            app_ctx = message.conf.get("app_ctx")  # injected by middleware
+        except Exception:
+            app_ctx = None
+
+        settings = getattr(app_ctx, "settings", None)
+        if settings and getattr(settings, "openai_api_key", "").strip():
+            ai_sig, ai_errors = await parse_signal_via_openai(
+                api_key=settings.openai_api_key,
+                model=settings.openai_model,
+                text=raw_text,
+            )
+            if ai_sig is not None:
+                parsed_ok = ai_sig.signal
+                market_insight = ai_sig.market_insight
+                risk_management = ai_sig.risk_management
+                errors = []
+                log.info(
+                    "AI PARSE SUCCESS direction=%s entry=%s-%s",
+                    parsed_ok.direction,
+                    parsed_ok.entry_min,
+                    parsed_ok.entry_max,
+                )
+            else:
+                errors = ai_errors or errors
+
+        if parsed_ok is None:
+            log.info("PARSE FAILED: %s", errors)
+            bullets = "\n".join(f"- {e}" for e in errors)
+            explanation = (
+                "Could not parse this as a signal.\n\n"
+                "Tip: include direction (BUY/SELL), entry (one or two prices), SL, and at least one TP.\n\n"
+                "Details:\n" + bullets
+            )
+            await message_answer_logged(message, explanation)
+            return
 
     log.info("PARSE SUCCESS direction=%s entry=%s-%s", parsed_ok.direction, parsed_ok.entry_min, parsed_ok.entry_max)
 
-    body = format_signal_standard(parsed_ok)
+    body = format_signal_elite(
+        parsed_ok,
+        market_insight=market_insight,
+        risk_management=risk_management,
+    )
     preview_text = "Here is your formatted signal:\n\n" + body
     sent = await message_answer_logged(
         message,
@@ -97,14 +134,32 @@ async def ingest_signal(
         log.warning("Skipped FSM persist — preview failed to send")
         return
 
-    await state.update_data(signal=dump_signal(parsed_ok))
+    await state.update_data(
+        signal=dump_signal(parsed_ok),
+        market_insight=market_insight,
+        risk_management=risk_management,
+    )
     await state.set_state(PublishStates.choosing_channel)
 
 
-async def _persist(bot: Bot, app_ctx: AppContext, sig: ParsedSignal, dest: str) -> str:
+async def _persist(
+    bot: Bot,
+    app_ctx: AppContext,
+    sig: ParsedSignal,
+    dest: str,
+    *,
+    market_insight: str = "",
+    risk_management: str = "",
+) -> str:
     s = app_ctx.settings
     if dest == "vip":
-        msg = await publish_service.send_vip_signal(bot, s, sig)
+        msg = await publish_service.send_vip_signal(
+            bot,
+            s,
+            sig,
+            market_insight=market_insight,
+            risk_management=risk_management,
+        )
         sid = await app_ctx.db.insert_signal(
             symbol=sig.symbol.upper(),
             direction=sig.direction.upper(),
@@ -125,7 +180,13 @@ async def _persist(bot: Bot, app_ctx: AppContext, sig: ParsedSignal, dest: str) 
     if dest == "free":
         if not (s.free_cta_username.strip()):
             raise ValueError("FREE_CTA_USERNAME is missing in .env")
-        msg = await publish_service.send_free_signal(bot, s, sig)
+        msg = await publish_service.send_free_signal(
+            bot,
+            s,
+            sig,
+            market_insight=market_insight,
+            risk_management=risk_management,
+        )
         sid = await app_ctx.db.insert_signal(
             symbol=sig.symbol.upper(),
             direction=sig.direction.upper(),
@@ -191,6 +252,8 @@ async def choose_destination(
 
     data = await state.get_data()
     raw = data.get("signal")
+    market_insight = str(data.get("market_insight") or "")
+    risk_management = str(data.get("risk_management") or "")
     if not isinstance(raw, dict):
         try:
             await callback.answer("Session expired.", show_alert=True)
@@ -242,11 +305,29 @@ async def choose_destination(
         if action in {"vip", "both"}:
             if not s.vip_channel_id:
                 raise ValueError("VIP_CHANNEL_ID missing")
-            notes.append(await _persist(bot, app_ctx, sig, "vip"))
+            notes.append(
+                await _persist(
+                    bot,
+                    app_ctx,
+                    sig,
+                    "vip",
+                    market_insight=market_insight,
+                    risk_management=risk_management,
+                )
+            )
         if action in {"free", "both"}:
             if not s.free_channel_id:
                 raise ValueError("FREE_CHANNEL_ID missing")
-            notes.append(await _persist(bot, app_ctx, sig, "free"))
+            notes.append(
+                await _persist(
+                    bot,
+                    app_ctx,
+                    sig,
+                    "free",
+                    market_insight=market_insight,
+                    risk_management=risk_management,
+                )
+            )
 
         summary = (
             "\n".join(notes)
