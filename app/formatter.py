@@ -6,8 +6,7 @@ from app.parser import ParsedSignal
 _TP_ICONS_SELL = ("✅", "✅✅", "✅✅✅", "✅✅✅✅", "▪✅✅✅✅✅")
 _TP_ICONS_BUY = ("✅", "✅✅", "✅✅✅", "✅✅✅✅", "▪✅✅✅✅✅")
 
-_ELITE_DIVIDER = "━━━━━━━━━━━━━━━"
-_ELITE_FOOTER = "🔥 Stay disciplined — consistency beats emotion."
+_VIP_FOOTER = "🔥 Stay disciplined and trade smart."
 
 
 def fmt_pair_title(direction: str, symbol_display: str) -> str:
@@ -62,24 +61,26 @@ def format_signal_standard(sig: ParsedSignal) -> str:
 def format_signal_elite(
     sig: ParsedSignal,
     *,
+    order_type: str = "",
     market_insight: str = "",
     risk_management: str = "",
 ) -> str:
     """
-    Elite VIP-styled signal message.
+    VIP-styled signal message matching the house template.
     Always includes the required footer line at the bottom.
     """
     sym = sig.symbol.upper()
-    symbol_display = sym
     direction = sig.direction.upper()
-    order_type = "LIMIT" if sig.entry_min != sig.entry_max else "MARKET"
+    ot = (order_type or "").strip().upper()
+    if ot not in {"LIMIT", "MARKET", "STOP"}:
+        ot = "LIMIT" if sig.entry_min != sig.entry_max else "MARKET"
 
-    title = f"🏆 {symbol_display} • {direction} {order_type}"
+    title = f"🏆 {sym} • {direction} {ot}"
 
     entry_line = (
-        f"➜ {sig.entry_min:g} - {sig.entry_max:g}"
+        f"{sig.entry_min:g} - {sig.entry_max:g}"
         if sig.entry_min != sig.entry_max
-        else f"➜ {sig.entry_min:g}"
+        else f"{sig.entry_min:g}"
     )
 
     icons = _TP_ICONS_BUY if direction == "BUY" else _TP_ICONS_SELL
@@ -87,35 +88,43 @@ def format_signal_elite(
     ordered = [(i, sig.tp_levels[i]) for i in sig.tp_order]
     for idx, price in ordered:
         icon = icons[(idx - 1) % len(icons)]
-        tp_lines.append(f"➜ TP{idx} • {price:g} {icon}")
+        tp_lines.append(f"TP{idx} → {price:g} {icon}")
 
     if not tp_lines:
-        tp_lines.append("➜ TP1 • (not provided)")
+        tp_lines.append("TP1 → (not provided)")
 
-    insight = (market_insight or "").strip()
     risk = (risk_management or "").strip()
     if not risk:
-        risk = "Recommended risk: 0.5% - 2% per trade."
+        risk = "Use proper risk management on every trade."
 
     blocks = [
-        _ELITE_DIVIDER,
         title,
-        _ELITE_DIVIDER,
+        "",
         "📍 Entry Zone",
         entry_line,
-        "🎯 Profit Targets",
+        "",
+        "🎯 Take Profit Targets",
         *tp_lines,
+        "",
+        "🚀 Runner Open",
+        "",
         "🛡 Stop Loss",
-        f"➜ {sig.sl:g}",
-        "📊 Market Insight",
-        f"➜ {insight}" if insight else "➜ (no notes provided)",
+        f"{sig.sl:g}",
+        "",
         "⚠️ Risk Management",
-        f"➜ {risk}",
-        _ELITE_DIVIDER,
-        _ELITE_FOOTER,
-        _ELITE_DIVIDER,
+        f"{risk}",
+        "",
+        _VIP_FOOTER,
     ]
-    return "\n".join(blocks)
+    # Remove duplicate empty lines while preserving intentional section spacing.
+    out: list[str] = []
+    for line in blocks:
+        if line == "" and (not out or out[-1] == ""):
+            continue
+        out.append(line)
+    while out and out[-1] == "":
+        out.pop()
+    return "\n".join(out)
 
 
 def add_vip_header(body: str) -> str:

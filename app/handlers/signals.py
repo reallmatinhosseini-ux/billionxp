@@ -9,9 +9,8 @@ from aiogram.types import CallbackQuery, Message
 from app.formatter import format_signal_elite
 from app.keyboards import publish_destination_keyboard
 from app.middlewares import AppContext
-from app.parser import ParsedSignal, parse_signal
+from app.parser import ParsedSignal, parse_signal_any
 from app.replies import message_answer_logged
-from services.ai_signal import parse_signal_via_openai
 from services import publisher as publish_service
 from utils.logger import get_logger
 
@@ -74,55 +73,23 @@ async def ingest_signal(
     log.info("RAW SIGNAL handler called chat=%s user=%s", message.chat.id, message.from_user.id)
 
     raw_text = message.text or ""
-    parsed_ok, errors = parse_signal(raw_text)
-    market_insight = ""
-    risk_management = ""
-
-    # Fallback to OpenAI when local parsing fails.
+    parsed_ok, extras, errors = parse_signal_any(raw_text)
     if parsed_ok is None:
-        try:
-            app_ctx = message.conf.get("app_ctx")  # injected by middleware
-        except Exception:
-            app_ctx = None
-
-        settings = getattr(app_ctx, "settings", None)
-        if settings and getattr(settings, "openai_api_key", "").strip():
-            ai_sig, ai_errors = await parse_signal_via_openai(
-                api_key=settings.openai_api_key,
-                model=settings.openai_model,
-                text=raw_text,
-            )
-            if ai_sig is not None:
-                parsed_ok = ai_sig.signal
-                market_insight = ai_sig.market_insight
-                risk_management = ai_sig.risk_management
-                errors = []
-                log.info(
-                    "AI PARSE SUCCESS direction=%s entry=%s-%s",
-                    parsed_ok.direction,
-                    parsed_ok.entry_min,
-                    parsed_ok.entry_max,
-                )
-            else:
-                errors = ai_errors or errors
-
-        if parsed_ok is None:
-            log.info("PARSE FAILED: %s", errors)
-            bullets = "\n".join(f"- {e}" for e in errors)
-            explanation = (
-                "Could not parse this as a signal.\n\n"
-                "Tip: include direction (BUY/SELL), entry (one or two prices), SL, and at least one TP.\n\n"
-                "Details:\n" + bullets
-            )
-            await message_answer_logged(message, explanation)
-            return
+        log.info("PARSE FAILED: %s", errors)
+        bullets = "\n".join(f"- {e}" for e in (errors or ["Unknown parsing error."]))
+        explanation = (
+            "Could not parse this as a signal.\n\n"
+            "Tip: include direction (BUY/SELL), entry (one or two prices), SL, and at least one TP.\n\n"
+            "Details:\n" + bullets
+        )
+        await message_answer_logged(message, explanation)
+        return
 
     log.info("PARSE SUCCESS direction=%s entry=%s-%s", parsed_ok.direction, parsed_ok.entry_min, parsed_ok.entry_max)
 
     body = format_signal_elite(
         parsed_ok,
-        market_insight=market_insight,
-        risk_management=risk_management,
+        order_type=extras.order_type,
     )
     preview_text = "Here is your formatted signal:\n\n" + body
     sent = await message_answer_logged(
@@ -136,8 +103,7 @@ async def ingest_signal(
 
     await state.update_data(
         signal=dump_signal(parsed_ok),
-        market_insight=market_insight,
-        risk_management=risk_management,
+        order_type=extras.order_type,
     )
     await state.set_state(PublishStates.choosing_channel)
 
@@ -148,8 +114,7 @@ async def _persist(
     sig: ParsedSignal,
     dest: str,
     *,
-    market_insight: str = "",
-    risk_management: str = "",
+    order_type: str = "",
 ) -> str:
     s = app_ctx.settings
     if dest == "vip":
@@ -157,8 +122,7 @@ async def _persist(
             bot,
             s,
             sig,
-            market_insight=market_insight,
-            risk_management=risk_management,
+            order_type=order_type,
         )
         sid = await app_ctx.db.insert_signal(
             symbol=sig.symbol.upper(),
@@ -184,8 +148,7 @@ async def _persist(
             bot,
             s,
             sig,
-            market_insight=market_insight,
-            risk_management=risk_management,
+            order_type=order_type,
         )
         sid = await app_ctx.db.insert_signal(
             symbol=sig.symbol.upper(),
@@ -252,8 +215,7 @@ async def choose_destination(
 
     data = await state.get_data()
     raw = data.get("signal")
-    market_insight = str(data.get("market_insight") or "")
-    risk_management = str(data.get("risk_management") or "")
+    order_type = str(data.get("order_type") or "")
     if not isinstance(raw, dict):
         try:
             await callback.answer("Session expired.", show_alert=True)
@@ -311,8 +273,7 @@ async def choose_destination(
                     app_ctx,
                     sig,
                     "vip",
-                    market_insight=market_insight,
-                    risk_management=risk_management,
+                    order_type=order_type,
                 )
             )
         if action in {"free", "both"}:
@@ -324,8 +285,7 @@ async def choose_destination(
                     app_ctx,
                     sig,
                     "free",
-                    market_insight=market_insight,
-                    risk_management=risk_management,
+                    order_type=order_type,
                 )
             )
 

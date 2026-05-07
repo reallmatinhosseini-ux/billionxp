@@ -17,13 +17,11 @@ async def send_vip_signal(
     settings: Settings,
     sig: ParsedSignal,
     *,
-    market_insight: str = "",
-    risk_management: str = "",
+    order_type: str = "",
 ) -> Message:
     body = format_signal_elite(
         sig,
-        market_insight=market_insight,
-        risk_management=risk_management,
+        order_type=order_type,
     )
     text = add_vip_header(body)
     return await bot.send_message(chat_id=settings.vip_channel_id, text=text)
@@ -34,13 +32,11 @@ async def send_free_signal(
     settings: Settings,
     sig: ParsedSignal,
     *,
-    market_insight: str = "",
-    risk_management: str = "",
+    order_type: str = "",
 ) -> Message:
     body = format_signal_elite(
         sig,
-        market_insight=market_insight,
-        risk_management=risk_management,
+        order_type=order_type,
     )
     uname = settings.free_cta_username.strip().lstrip("@")
     text = body if not uname else add_free_cta(body, uname)
