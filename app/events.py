@@ -50,14 +50,13 @@ def _display_symbol(symbol: str) -> str:
 def _render_tp1(symbol: str) -> str:
     s = _display_symbol(symbol)
     return (
-        f"TP1 LOCKED IN 🎯💥 — {s}\n"
+        f"🎯 TP1 SECURED — {s}\n"
         "\n"
-        "First target down. Execution flawless. ⚡\n"
-        "Partials banked. SL ➡️ Break Even. 🛡\n"
+        "Partials banked. SL → Break Even.\n"
+        "Risk eliminated in one move.\n"
         "\n"
-        "This trade is now bulletproof. Zero risk. Pure upside. 🚀\n"
-        "\n"
-        "While others hesitated, we earned. 💰"
+        "⚡ While others hesitated, VIP got paid.\n"
+        "🔥 This is the edge."
     )
 
 
@@ -78,12 +77,13 @@ TP1 = EventConfig(
 def _render_tp2(symbol: str) -> str:
     s = _display_symbol(symbol)
     return (
-        f"TP2 HIT 😎🚀 — {s}\n"
+        f"🎯 TP2 SECURED — {s}\n"
         "\n"
-        "Second target secured — clean, disciplined, ruthless. 💥\n"
-        "Profit banked. Risk eliminated. 🔥⛔️\n"
+        "Profit stacked. Trade fully risk-free.\n"
+        "The runner works for us now.\n"
         "\n"
-        "Free ride from here. No pressure. No noise. Just gains. 💎"
+        "⚡ Non-members are still analyzing.\n"
+        "🔥 We’re already paid."
     )
 
 
@@ -103,12 +103,13 @@ TP2 = EventConfig(
 def _render_tp3(symbol: str) -> str:
     s = _display_symbol(symbol)
     return (
-        f"TP3 SMASHED 🔥📈 — {s}\n"
+        f"🎯 TP3 SECURED — {s}\n"
         "\n"
-        "Third target down — the plan is printing. 💎\n"
-        "Patience. Conviction. Structure. That’s the edge. 💪\n"
+        "Three clean prints. The plan is printing.\n"
+        "Runner trailing. We let it work.\n"
         "\n"
-        "Runner trailing. Eyes sharp. We’re not done. 👀"
+        "⚡ You can’t fake this kind of consistency.\n"
+        "🔥 Conviction. Patience. Execution."
     )
 
 
@@ -128,12 +129,13 @@ TP3 = EventConfig(
 def _render_tp4(symbol: str) -> str:
     s = _display_symbol(symbol)
     return (
-        f"TP4 CRUSHED 🚀💥 — {s}\n"
+        f"🎯 TP4 SECURED — {s}\n"
         "\n"
-        "Fourth target cleared. We’re deep in the move now. 😎\n"
-        "Most traders cashed out three levels ago. Not us. 🦾\n"
+        "Deep in the move. Late entries chasing.\n"
+        "We’re already sitting on premium profit.\n"
         "\n"
-        "Pure precision. Pure patience. Premium results. 💎"
+        "⚡ Inside the room, this is the standard.\n"
+        "🔥 The system never tilts."
     )
 
 
@@ -153,13 +155,13 @@ TP4 = EventConfig(
 def _render_tp5(symbol: str) -> str:
     s = _display_symbol(symbol)
     return (
-        f"TP5 DESTROYED 👑🔥 — {s}\n"
+        f"🎯 TP5 SECURED — {s}\n"
         "\n"
-        "Five for five — championship-level execution. 💎🚀\n"
-        "The market gave. We took every. single. cent. 💰\n"
+        "Five clean targets. Surgical precision.\n"
+        "Every cent the market offered — claimed.\n"
         "\n"
-        "This isn’t luck. This is the system. 🧠⚡\n"
-        "This is what elite looks like."
+        "⚡ This is what VIP pays for.\n"
+        "🔥 No noise. Just results."
     )
 
 
@@ -179,12 +181,13 @@ TP5 = EventConfig(
 def _render_tp6(symbol: str) -> str:
     s = _display_symbol(symbol)
     return (
-        f"TP6 DEMOLISHED 🏆⚡ — {s}\n"
+        f"🎯 TP6 SECURED — {s}\n"
         "\n"
-        "Sixth target down — rare air. 💎🔥\n"
-        "No panic. No greed. Just mastery in motion. 🧠\n"
+        "Rare air. Six clean prints.\n"
+        "Most traders never see this kind of run.\n"
         "\n"
-        "One level left. The legend isn’t finished yet. 👑"
+        "⚡ The system. The discipline. The edge.\n"
+        "🔥 We don’t celebrate — we execute."
     )
 
 
@@ -205,13 +208,13 @@ TP6 = EventConfig(
 def _render_tp7(symbol: str) -> str:
     s = _display_symbol(symbol)
     return (
-        f"TP7 — TOTAL DOMINATION 👑💎🚀 — {s}\n"
+        f"🏆 TP7 — FULL CLEAR — {s}\n"
         "\n"
-        "Seventh target. Full clear. Maximum extraction. 🏆🔥\n"
-        "A legendary run, executed with surgical precision. ⚡\n"
+        "Seven targets. Maximum extraction.\n"
+        "The kind of run other channels brag about for weeks.\n"
         "\n"
-        "This is the ceiling. This is the standard.\n"
-        "Bow to the system. Bow to the discipline. 🙇‍♂️"
+        "⚡ For VIP — this is the standard.\n"
+        "🔥 Nothing less."
     )
 
 
@@ -232,16 +235,13 @@ TP7 = EventConfig(
 def _render_sl(symbol: str) -> str:
     s = _display_symbol(symbol)
     return (
-        f"SL HIT ⛔️📉 — {s}\n"
+        f"🛡 SL HIT — {s}\n"
         "\n"
-        "This one didn’t go our way.\n"
-        "Discipline first. Emotion never. 🧠\n"
+        "This one didn’t pay. We accept it clean.\n"
+        "Capital protected. Discipline intact.\n"
         "\n"
-        "We take the loss clean. We learn. We reset. 🔄\n"
-        "The next high-conviction setup is already loading. 💭📊\n"
-        "\n"
-        "No revenge. No tilt. No mistakes repeated.\n"
-        "This is how professionals operate. 🦾"
+        "⚡ Losses are the cost of staying in the game.\n"
+        "🔥 No revenge. No tilt. Next setup loading."
     )
 
 
@@ -260,13 +260,13 @@ SL = EventConfig(
 def _render_be(symbol: str) -> str:
     s = _display_symbol(symbol)
     return (
-        f"BREAK EVEN ⚖️ — {s}\n"
+        f"🛡 BREAK EVEN — {s}\n"
         "\n"
-        "Trade closed at entry. Zero loss. 🛡\n"
-        "TP1 profits already in the bag. ✅💰\n"
+        "Trade closed at entry. Zero loss.\n"
+        "TP1 profits already locked.\n"
         "\n"
-        "That’s the power of moving SL early — risk dies, upside stays. 🧠\n"
-        "On to the next opportunity. 🚀"
+        "⚡ Early SL management = bulletproof trading.\n"
+        "🔥 Risk dies. Upside stays."
     )
 
 
