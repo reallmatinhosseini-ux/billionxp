@@ -1,6 +1,6 @@
-```python
 from __future__ import annotations
 
+from typing import List, Tuple
 from app.parser import ParsedSignal
 
 
@@ -28,17 +28,14 @@ _VIP_FOOTER = (
 
 
 def fmt_pair_title(direction: str, symbol_display: str) -> str:
-    d = direction.upper()
-
-    if d == "BUY":
+    if direction.upper() == "BUY":
         return f"🚨🟢 {symbol_display} BUY SIGNAL 🟢🚨"
-
     return f"🚨🔴 {symbol_display} SELL SIGNAL 🔴🚨"
 
 
 def format_signal_standard(sig: ParsedSignal) -> str:
     sym = sig.symbol.upper()
-    display = sym.replace("XAUUSD", "GOLD") if sym == "XAUUSD" else sym
+    display = "GOLD" if sym == "XAUUSD" else sym
 
     icon_row = fmt_pair_title(sig.direction, display)
 
@@ -58,7 +55,7 @@ def format_signal_standard(sig: ParsedSignal) -> str:
         tp_lines.append("▪ No targets provided")
 
     for lbl, price in ordered:
-        icon = icons[(lbl - 1) % len(icons)]
+        icon = icons[min(lbl - 1, len(icons) - 1)]
         tp_lines.append(f"{icon} TP{lbl} → {price:g}")
 
     sl_line = f"🛡 Stop Loss: {sig.sl:g}"
@@ -69,7 +66,7 @@ def format_signal_standard(sig: ParsedSignal) -> str:
         "🚀 Follow The Plan"
     )
 
-    blocks = [
+    return "\n".join([
         icon_row,
         "",
         line_entry,
@@ -79,9 +76,7 @@ def format_signal_standard(sig: ParsedSignal) -> str:
         sl_line,
         "",
         footer,
-    ]
-
-    return "\n".join(blocks)
+    ])
 
 
 def format_signal_elite(
@@ -94,8 +89,7 @@ def format_signal_elite(
     sym = sig.symbol.upper()
     direction = sig.direction.upper()
 
-    ot = (order_type or "").strip().upper()
-
+    ot = order_type.strip().upper()
     if ot not in {"LIMIT", "MARKET", "STOP"}:
         ot = "LIMIT" if sig.entry_min != sig.entry_max else "MARKET"
 
@@ -109,21 +103,17 @@ def format_signal_elite(
 
     icons = _TP_ICONS_BUY if direction == "BUY" else _TP_ICONS_SELL
 
-    tp_lines: list[str] = []
-
     ordered = [(i, sig.tp_levels[i]) for i in sig.tp_order]
 
+    tp_lines: List[str] = []
     for idx, price in ordered:
-        icon = icons[(idx - 1) % len(icons)]
+        icon = icons[min(idx - 1, len(icons) - 1)]
         tp_lines.append(f"{icon} TP{idx} → {price:g}")
 
     if not tp_lines:
         tp_lines.append("🥉 TP1 → (not provided)")
 
-    risk = (risk_management or "").strip()
-
-    if not risk:
-        risk = "Risk 1% Per Trade"
+    risk = risk_management.strip() or "Risk 1% Per Trade"
 
     blocks = [
         title,
@@ -133,27 +123,38 @@ def format_signal_elite(
         "",
         "🎯 PROFIT TARGETS",
         *tp_lines,
-        "",
-        "🚀 RUNNER OPEN",
+    ]
+
+    if len(ordered) > 1:
+        blocks += ["", "🚀 RUNNER OPEN"]
+
+    blocks += [
         "",
         "🛡 STOP LOSS",
         f"{sig.sl:g}",
+    ]
+
+    if market_insight.strip():
+        blocks += [
+            "",
+            "📊 MARKET INSIGHT",
+            market_insight.strip(),
+        ]
+
+    blocks += [
         "",
         "⚠️ RISK MANAGEMENT",
         risk,
         "",
-        _VIP_FOOTER,
+        *_VIP_FOOTER,
     ]
 
-    out: list[str] = []
-
+    # clean double empty lines
+    out: List[str] = []
     for line in blocks:
         if line == "" and (not out or out[-1] == ""):
             continue
         out.append(line)
-
-    while out and out[-1] == "":
-        out.pop()
 
     return "\n".join(out)
 
@@ -164,37 +165,23 @@ def add_vip_header(body: str) -> str:
 
 def add_free_cta(body: str, username_without_at: str) -> str:
     uname = username_without_at.strip().lstrip("@")
-
-    cta = (
-        f"🚀 Want Full VIP Access?\n"
-        f"📩 Message: @{uname}"
-    )
-
-    return body + "\n\n" + cta
+    return body + f"\n\n🚀 Want Full VIP Access?\n📩 Message: @{uname}"
 
 
-def tp_hit_title(tp_index: int) -> tuple[str, str]:
+def tp_hit_title(tp_index: int) -> Tuple[str, str]:
     if tp_index == 1:
         return "🎯🔥 TP1 HIT 🔥🎯", ""
-
     if tp_index == 2:
         return "🚀🚀 TP2 HIT 🚀🚀", ""
-
     return f"🏆 TARGET {tp_index} HIT 🏆", ""
 
 
-def format_tp_followup(
-    direction: str,
-    tp_index: int,
-    symbol_display: str,
-) -> str:
+def format_tp_followup(direction: str, tp_index: int, symbol_display: str) -> str:
     sym = symbol_display.upper()
-    display = sym.replace("XAUUSD", "GOLD")
-
-    lines: list[str] = []
+    display = "GOLD" if sym == "XAUUSD" else sym
 
     if tp_index == 1:
-        lines.extend([
+        return "\n".join([
             f"🎯🔥 TP1 HIT ON {display} 🔥🎯",
             "",
             "✅ Partial profits secured",
@@ -202,8 +189,8 @@ def format_tp_followup(
             "🚀 Next target loading..."
         ])
 
-    elif tp_index == 2:
-        lines.extend([
+    if tp_index == 2:
+        return "\n".join([
             f"🚀🚀 TP2 HIT ON {display} 🚀🚀",
             "",
             "💰 More profits locked in",
@@ -212,16 +199,13 @@ def format_tp_followup(
             "🎯 TP3 in sight"
         ])
 
-    else:
-        lines.extend([
-            f"🏆 TARGET {tp_index} HIT ON {display} 🏆",
-            "",
-            "💎 Massive profits secured",
-            "⚡ Trend remains strong",
-            "🚀 Let the runner work"
-        ])
-
-    return "\n".join(lines)
+    return "\n".join([
+        f"🏆 TARGET {tp_index} HIT ON {display} 🏆",
+        "",
+        "💎 Massive profits secured",
+        "⚡ Trend remains strong",
+        "🚀 Let the runner work"
+    ])
 
 
 def format_sl_followup(symbol_display: str) -> str:
@@ -238,4 +222,3 @@ def format_sl_followup(symbol_display: str) -> str:
         "🔥 Stay disciplined.",
         "🚀 Next opportunity is coming."
     ])
-```
