@@ -3,7 +3,7 @@ from __future__ import annotations
 from aiogram import F, Router
 from aiogram.enums import ChatType
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, Message
 
 from app.database import SignalRecord
 from app.events import all_take_profits
@@ -13,6 +13,7 @@ from app.replies import message_answer_logged
 router = Router(name="admin")
 
 _DM = F.chat.type == ChatType.PRIVATE
+_DM_CALLBACK = F.message.chat.type == ChatType.PRIVATE
 
 
 @router.message(Command("settings"), _DM)
@@ -96,3 +97,36 @@ async def cmd_close(message: Message, app_ctx: AppContext) -> None:
 
     await app_ctx.db.update_hits_and_status(sid, status="closed")
     await message_answer_logged(message, f"Signal #{sid} marked closed. Tracking stopped.")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Inline menu shortcuts
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+async def _ack(callback: CallbackQuery) -> None:
+    try:
+        await callback.answer()
+    except Exception:
+        pass
+
+
+@router.callback_query(F.data == "menu:active", _DM_CALLBACK)
+async def menu_active(callback: CallbackQuery, app_ctx: AppContext) -> None:
+    await _ack(callback)
+    if isinstance(callback.message, Message):
+        await cmd_active(callback.message, app_ctx)
+
+
+@router.callback_query(F.data == "menu:history", _DM_CALLBACK)
+async def menu_history(callback: CallbackQuery, app_ctx: AppContext) -> None:
+    await _ack(callback)
+    if isinstance(callback.message, Message):
+        await cmd_history(callback.message, app_ctx)
+
+
+@router.callback_query(F.data == "menu:settings", _DM_CALLBACK)
+async def menu_settings(callback: CallbackQuery, app_ctx: AppContext) -> None:
+    await _ack(callback)
+    if isinstance(callback.message, Message):
+        await cmd_settings(callback.message, app_ctx)

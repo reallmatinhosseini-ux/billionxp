@@ -1,12 +1,18 @@
 """
 Event registry for trade lifecycle notifications.
 
-Each event (TP1, TP2, TP3, TP4, TP5, SL, BE) lives in its own independent
-configuration block below. To tweak a message, edit only that block.
-To add a new event, append a new block and register it in `_REGISTRY`.
+Each event (TP1..TP7, SL, BE) lives in its own independent configuration
+block below. To tweak a message, edit only that block. To add a new event,
+append a new block and register it in `_REGISTRY`.
 
 The tracker and follow-up handler both read this registry — they never
 hard-code TP/SL/BE behavior themselves.
+
+A note on `tracked`:
+- TP1..TP5 are persisted on the signals table and watched by the live
+  price tracker (`tracked=True`).
+- TP6 and TP7 exist only for manual broadcasts via the TP Sender flow
+  (`tracked=False`) — they have no DB column and the tracker ignores them.
 """
 
 from __future__ import annotations
@@ -28,7 +34,8 @@ class EventConfig:
     moves_sl_to_be: bool = False       # flip sl_moved_to_be flag on signal
     closes_signal: bool = False        # set status='closed' after sending
     is_take_profit: bool = False       # contributes to "all TPs hit -> completed"
-    tp_index: int | None = None        # 1..5 when is_take_profit
+    tp_index: int | None = None        # 1..7 when is_take_profit
+    tracked: bool = True               # False = manual-only (no DB column)
 
 
 def _display_symbol(symbol: str) -> str:
@@ -43,12 +50,12 @@ def _display_symbol(symbol: str) -> str:
 def _render_tp1(symbol: str) -> str:
     s = _display_symbol(symbol)
     return (
-        f"🎯 TP1 HIT — {s}\n"
+        f"TP1 HIT 🎯💥 — {s}\n"
         "\n"
-        "✅ First target secured\n"
-        "💰 Take partial profits\n"
-        "🛡 SL moved to Break Even\n"
-        "🚀 Let the runner work"
+        "First level smashed — execution on point. 💪\n"
+        "Partials secured, SL shifted to Break Even. ⛔️➡️🟰\n"
+        "\n"
+        "Trade is now risk-free. We breathe and let it run."
     )
 
 
@@ -69,11 +76,12 @@ TP1 = EventConfig(
 def _render_tp2(symbol: str) -> str:
     s = _display_symbol(symbol)
     return (
-        f"🚀 TP2 HIT — {s}\n"
+        f"TP2 HIT 😎🚀 — {s}\n"
         "\n"
-        "💰 Profits stacking up\n"
-        "📈 Momentum confirmed\n"
-        "🔥 Hold the remaining position"
+        "Second target secured — clean, disciplined execution. 💥\n"
+        "Profit locked in, risk already eliminated. 🔥⛔️\n"
+        "\n"
+        "Now it’s a free ride… no pressure, no noise."
     )
 
 
@@ -93,11 +101,12 @@ TP2 = EventConfig(
 def _render_tp3(symbol: str) -> str:
     s = _display_symbol(symbol)
     return (
-        f"🏆 TP3 HIT — {s}\n"
+        f"TP3 HIT 🔥📈 — {s}\n"
         "\n"
-        "💎 Major target reached\n"
-        "📊 Trade now risk-free\n"
-        "⚡ Trend still in our favour"
+        "Third target down — the plan is playing out beautifully. 💎\n"
+        "Patience, conviction, structure — that’s the edge. 💪\n"
+        "\n"
+        "Trail the runner. Stay sharp."
     )
 
 
@@ -117,11 +126,12 @@ TP3 = EventConfig(
 def _render_tp4(symbol: str) -> str:
     s = _display_symbol(symbol)
     return (
-        f"💎 TP4 HIT — {s}\n"
+        f"TP4 HIT 🚀💥 — {s}\n"
         "\n"
-        "🔥 Exceptional move\n"
-        "📈 Trend extending\n"
-        "🚀 One target remaining"
+        "Fourth level cleared — we’re deep in the move now. 😎\n"
+        "Most traders cashed out long ago. Not us.\n"
+        "\n"
+        "Pure precision. Pure patience."
     )
 
 
@@ -141,11 +151,12 @@ TP4 = EventConfig(
 def _render_tp5(symbol: str) -> str:
     s = _display_symbol(symbol)
     return (
-        f"👑 TP5 HIT — FULL TARGET — {s}\n"
+        f"TP5 HIT 👑🔥 — {s}\n"
         "\n"
-        "🏆 Every level reached\n"
-        "💰 Maximum profit secured\n"
-        "🎉 Congratulations to all members"
+        "Five for five — championship-level execution. 💎🚀\n"
+        "The market gave, and we took every cent. 💰\n"
+        "\n"
+        "This is what elite trading looks like."
     )
 
 
@@ -159,17 +170,73 @@ TP5 = EventConfig(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# TP6 (manual-only — not tracked by price loop)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _render_tp6(symbol: str) -> str:
+    s = _display_symbol(symbol)
+    return (
+        f"TP6 HIT 🏆⚡ — {s}\n"
+        "\n"
+        "Sixth target down — rare territory. 💎🔥\n"
+        "Discipline, conviction, no panic — pure mastery.\n"
+        "\n"
+        "One more level to perfection."
+    )
+
+
+TP6 = EventConfig(
+    code="tp6",
+    label="TP6 HIT",
+    render=_render_tp6,
+    is_take_profit=True,
+    tp_index=6,
+    tracked=False,
+)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TP7 (manual-only — not tracked by price loop)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _render_tp7(symbol: str) -> str:
+    s = _display_symbol(symbol)
+    return (
+        f"TP7 HIT 👑💎🚀 — {s}\n"
+        "\n"
+        "Seventh target… absolute domination. 🏆🔥\n"
+        "A legendary run, executed with surgical precision. ⚡\n"
+        "\n"
+        "Bow to the system. Bow to the discipline."
+    )
+
+
+TP7 = EventConfig(
+    code="tp7",
+    label="TP7 HIT",
+    render=_render_tp7,
+    is_take_profit=True,
+    tp_index=7,
+    tracked=False,
+)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # SL — Stop Loss
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _render_sl(symbol: str) -> str:
     s = _display_symbol(symbol)
     return (
-        f"⛔ STOP LOSS HIT — {s}\n"
+        f"SL HIT ⛔️📉 — {s}\n"
         "\n"
-        "📉 Trade closed at SL\n"
-        "🛡 Capital protected — discipline first\n"
-        "🔥 Resetting for the next high-quality setup"
+        "This one didn’t go our way.\n"
+        "But discipline always comes first — not emotion.\n"
+        "\n"
+        "We take the loss clean, we learn, we reset.\n"
+        "The next setup is already waiting. 💭📊\n"
+        "\n"
+        "No revenge trading. No mistakes repeated."
     )
 
 
@@ -188,11 +255,12 @@ SL = EventConfig(
 def _render_be(symbol: str) -> str:
     s = _display_symbol(symbol)
     return (
-        f"⚖️ BREAK EVEN — {s}\n"
+        f"BREAK EVEN ⚖️ — {s}\n"
         "\n"
-        "🛡 Trade closed at entry — zero loss\n"
-        "✅ Profit from TP1 already locked\n"
-        "🔥 On to the next opportunity"
+        "Trade closed at entry — zero loss. 🛡\n"
+        "Profit from TP1 already locked in. ✅\n"
+        "\n"
+        "On to the next opportunity. 🚀"
     )
 
 
@@ -209,7 +277,7 @@ BE = EventConfig(
 # ─────────────────────────────────────────────────────────────────────────────
 
 _REGISTRY: Mapping[str, EventConfig] = {
-    e.code: e for e in (TP1, TP2, TP3, TP4, TP5, SL, BE)
+    e.code: e for e in (TP1, TP2, TP3, TP4, TP5, TP6, TP7, SL, BE)
 }
 
 
@@ -218,7 +286,20 @@ def get_event(code: str) -> EventConfig | None:
 
 
 def all_take_profits() -> tuple[EventConfig, ...]:
-    return tuple(e for e in _REGISTRY.values() if e.is_take_profit)
+    """TPs the live tracker is allowed to watch (must have a DB column)."""
+    return tuple(
+        e for e in _REGISTRY.values() if e.is_take_profit and e.tracked
+    )
+
+
+def manual_tp_events() -> tuple[EventConfig, ...]:
+    """All TP events exposed in the manual TP Sender flow (1..7)."""
+    return tuple(
+        sorted(
+            (e for e in _REGISTRY.values() if e.is_take_profit),
+            key=lambda e: e.tp_index or 0,
+        )
+    )
 
 
 def render_event(code: str, symbol: str) -> str | None:
