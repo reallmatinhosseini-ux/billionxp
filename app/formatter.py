@@ -4,78 +4,61 @@ from typing import List, Tuple
 from app.parser import ParsedSignal
 
 
-_TP_ICONS_BUY = (
-    "🥉",
-    "🥈",
-    "🥇",
-    "🏆",
-    "💎",
-)
-
-_TP_ICONS_SELL = (
-    "🥉",
-    "🥈",
-    "🥇",
-    "🏆",
-    "💎",
-)
+_TP_ICONS = ("🥉", "🥈", "🥇", "🏆", "💎")
 
 _VIP_FOOTER = (
-    "🔥 Trade the plan.\n"
-    "🛡 Protect your capital.\n"
+    "🔥 Trade the plan.",
+    "🛡 Protect your capital.",
     "🚀 Let winners run."
 )
 
 
 def fmt_pair_title(direction: str, symbol_display: str) -> str:
-    if direction.upper() == "BUY":
+    direction = direction.upper()
+
+    if direction == "BUY":
         return f"🚨🟢 {symbol_display} BUY SIGNAL 🟢🚨"
     return f"🚨🔴 {symbol_display} SELL SIGNAL 🔴🚨"
 
 
 def format_signal_standard(sig: ParsedSignal) -> str:
-    sym = sig.symbol.upper()
-    display = "GOLD" if sym == "XAUUSD" else sym
+    symbol = sig.symbol.upper()
+    display = "GOLD" if symbol == "XAUUSD" else symbol
 
-    icon_row = fmt_pair_title(sig.direction, display)
+    title = fmt_pair_title(sig.direction, display)
 
-    line_entry = (
+    entry = (
         f"💎 Entry Zone: {sig.entry_min:g} → {sig.entry_max:g}"
         if sig.entry_min != sig.entry_max
         else f"💎 Entry: {sig.entry_min:g}"
     )
 
-    icons = _TP_ICONS_BUY if sig.direction.upper() == "BUY" else _TP_ICONS_SELL
-
-    tp_lines = ["🎯 PROFIT TARGETS"]
+    icons = _TP_ICONS if sig.direction.upper() == "BUY" else _TP_ICONS
 
     ordered = [(i, sig.tp_levels[i]) for i in sig.tp_order]
 
-    if not ordered:
-        tp_lines.append("▪ No targets provided")
+    tp_section = ["🎯 PROFIT TARGETS"]
+    if ordered:
+        for idx, price in ordered:
+            icon = icons[min(idx - 1, len(icons) - 1)]
+            tp_section.append(f"{icon} TP{idx} → {price:g}")
+    else:
+        tp_section.append("▪ No targets provided")
 
-    for lbl, price in ordered:
-        icon = icons[min(lbl - 1, len(icons) - 1)]
-        tp_lines.append(f"{icon} TP{lbl} → {price:g}")
+    sl = f"🛡 Stop Loss: {sig.sl:g}"
 
-    sl_line = f"🛡 Stop Loss: {sig.sl:g}"
-
-    footer = (
-        "⚡ High Probability Setup\n"
-        "🛡 Risk Managed\n"
-        "🚀 Follow The Plan"
-    )
+    footer = "\n".join(_VIP_FOOTER)
 
     return "\n".join([
-        icon_row,
+        title,
         "",
-        line_entry,
+        entry,
         "",
-        *tp_lines,
+        *tp_section,
         "",
-        sl_line,
+        sl,
         "",
-        footer,
+        footer
     ])
 
 
@@ -86,23 +69,24 @@ def format_signal_elite(
     market_insight: str = "",
     risk_management: str = "",
 ) -> str:
-    sym = sig.symbol.upper()
+    symbol = sig.symbol.upper()
     direction = sig.direction.upper()
+
+    display = "GOLD" if symbol == "XAUUSD" else symbol
 
     ot = order_type.strip().upper()
     if ot not in {"LIMIT", "MARKET", "STOP"}:
         ot = "LIMIT" if sig.entry_min != sig.entry_max else "MARKET"
 
-    title = f"🏆🚨 VIP {sym} {direction} {ot} 🚨🏆"
+    title = f"🏆 VIP {display} {direction} {ot}"
 
-    entry_line = (
+    entry = (
         f"{sig.entry_min:g} - {sig.entry_max:g}"
         if sig.entry_min != sig.entry_max
         else f"{sig.entry_min:g}"
     )
 
-    icons = _TP_ICONS_BUY if direction == "BUY" else _TP_ICONS_SELL
-
+    icons = _TP_ICONS
     ordered = [(i, sig.tp_levels[i]) for i in sig.tp_order]
 
     tp_lines: List[str] = []
@@ -111,22 +95,22 @@ def format_signal_elite(
         tp_lines.append(f"{icon} TP{idx} → {price:g}")
 
     if not tp_lines:
-        tp_lines.append("🥉 TP1 → (not provided)")
+        tp_lines.append("🥉 TP1 → Not provided")
 
-    risk = risk_management.strip() or "Risk 1% Per Trade"
+    risk = risk_management.strip() or "Risk 1% per trade"
 
     blocks = [
         title,
         "",
         "💎 ENTRY ZONE",
-        entry_line,
+        entry,
         "",
         "🎯 PROFIT TARGETS",
         *tp_lines,
     ]
 
     if len(ordered) > 1:
-        blocks += ["", "🚀 RUNNER OPEN"]
+        blocks += ["", "🚀 RUNNER ACTIVE"]
 
     blocks += [
         "",
@@ -143,13 +127,13 @@ def format_signal_elite(
 
     blocks += [
         "",
-        "⚠️ RISK MANAGEMENT",
+        "⚠️ RISK",
         risk,
         "",
-        *_VIP_FOOTER,
+        *_VIP_FOOTER
     ]
 
-    # clean double empty lines
+    # clean spacing
     out: List[str] = []
     for line in blocks:
         if line == "" and (not out or out[-1] == ""):
@@ -160,65 +144,45 @@ def format_signal_elite(
 
 
 def add_vip_header(body: str) -> str:
-    return "🔥 VIP EXCLUSIVE SIGNAL 🔥\n\n" + body
+    return f"🔥 VIP EXCLUSIVE SIGNAL 🔥\n\n{body}"
 
 
-def add_free_cta(body: str, username_without_at: str) -> str:
-    uname = username_without_at.strip().lstrip("@")
-    return body + f"\n\n🚀 Want Full VIP Access?\n📩 Message: @{uname}"
+def add_free_cta(body: str, username: str) -> str:
+    username = username.strip().lstrip("@")
+    return body + f"\n\n🚀 Want VIP Access?\n📩 @{username}"
 
 
-def tp_hit_title(tp_index: int) -> Tuple[str, str]:
-    if tp_index == 1:
-        return "🎯🔥 TP1 HIT 🔥🎯", ""
-    if tp_index == 2:
-        return "🚀🚀 TP2 HIT 🚀🚀", ""
-    return f"🏆 TARGET {tp_index} HIT 🏆", ""
-
-
-def format_tp_followup(direction: str, tp_index: int, symbol_display: str) -> str:
-    sym = symbol_display.upper()
-    display = "GOLD" if sym == "XAUUSD" else sym
+def format_tp_followup(tp_index: int, symbol: str) -> str:
+    symbol = symbol.upper()
+    display = "GOLD" if symbol == "XAUUSD" else symbol
 
     if tp_index == 1:
-        return "\n".join([
-            f"🎯🔥 TP1 HIT ON {display} 🔥🎯",
-            "",
-            "✅ Partial profits secured",
-            "🛡 Move SL to Break Even",
-            "🚀 Next target loading..."
-        ])
+        return f"""🎯 TP1 HIT — {display}
+
+✅ Partial profits secured
+🛡 Move SL to BE
+🚀 Let next target run"""
 
     if tp_index == 2:
-        return "\n".join([
-            f"🚀🚀 TP2 HIT ON {display} 🚀🚀",
-            "",
-            "💰 More profits locked in",
-            "📈 Momentum remains strong",
-            "🔥 Hold runners",
-            "🎯 TP3 in sight"
-        ])
+        return f"""🚀 TP2 HIT — {display}
 
-    return "\n".join([
-        f"🏆 TARGET {tp_index} HIT ON {display} 🏆",
-        "",
-        "💎 Massive profits secured",
-        "⚡ Trend remains strong",
-        "🚀 Let the runner work"
-    ])
+💰 Profits locked
+📈 Momentum continues
+🔥 Hold runner"""
+
+    return f"""🏆 TP{tp_index} HIT — {display}
+
+💎 Major profit secured
+⚡ Trend still valid
+🚀 Let it run"""
 
 
-def format_sl_followup(symbol_display: str) -> str:
-    display = symbol_display.upper().replace("XAUUSD", "GOLD")
+def format_sl_followup(symbol: str) -> str:
+    symbol = symbol.upper()
+    display = "GOLD" if symbol == "XAUUSD" else symbol
 
-    return "\n".join([
-        "⛔ STOP LOSS HIT",
-        "",
-        f"{display} trade closed.",
-        "",
-        "🛡 Loss controlled.",
-        "📊 Capital protected.",
-        "",
-        "🔥 Stay disciplined.",
-        "🚀 Next opportunity is coming."
-    ])
+    return f"""⛔ STOP LOSS HIT — {display}
+
+📉 Trade closed
+🛡 Capital protected
+🔥 Next setup coming"""
