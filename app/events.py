@@ -48,18 +48,13 @@ def _display_symbol(symbol: str) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _render_tp1(symbol: str) -> str:
-    s = _display_symbol(symbol)
     return (
-        f"🎯 TP1 LOCKED 💰\n"
-        "━━━━━━━━━━━━━━━\n"
-        f"{s} — First target taken.\n"
-        "Partials banked. SL → Break Even.\n"
-        "Risk eliminated. Position bulletproof. 🛡\n"
+        "TP1 HIT 😎\n"
         "\n"
-        "While others were still loading charts —\n"
-        "VIP was already in profit. ⚡\n"
+        "Initial target hit ✔\n"
+        "Price reacted clean to the setup, structure still valid and momentum aligned.\n"
         "\n"
-        "🔥 The edge prints. Again."
+        "Nothing to do here except stay patient. Don’t rush exits — first move is just confirmation, not the main profit phase."
     )
 
 
@@ -78,18 +73,15 @@ TP1 = EventConfig(
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _render_tp2(symbol: str) -> str:
-    s = _display_symbol(symbol)
     return (
-        f"🎯 TP2 CRUSHED 💰💰\n"
-        "━━━━━━━━━━━━━━━\n"
-        f"{s} — Second target down.\n"
-        "Profit stacking. Risk gone. Runner working. 🚀\n"
+        "TP2 HIT 🚀\n"
         "\n"
-        "This is what conviction looks like\n"
-        "when the chart obeys the plan.\n"
+        "Second target hit ✔✔\n"
+        "Continuation is strong, no structural damage.\n"
         "\n"
-        "⚡ Non-members are still analyzing the entry.\n"
-        "🔥 We’re already two targets deep."
+        "Risk is now removed (breakeven secured ⛔️), so the position is effectively risk-free.\n"
+        "\n"
+        "Let it run. Interfering here is where most traders destroy good trades."
     )
 
 
@@ -107,18 +99,13 @@ TP2 = EventConfig(
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _render_tp3(symbol: str) -> str:
-    s = _display_symbol(symbol)
     return (
-        f"🎯 TP3 SMASHED 💰💰💰\n"
-        "━━━━━━━━━━━━━━━\n"
-        f"{s} — Three. Clean. Prints.\n"
-        "The plan didn’t just work — it dominated. 💎\n"
+        "TP3 HIT 🔥\n"
         "\n"
-        "Most traders take one TP and run.\n"
-        "VIP holds. VIP collects. VIP compounds.\n"
+        "Trend is fully confirmed ✔✔✔\n"
+        "Market is still respecting direction with no real rejection.\n"
         "\n"
-        "⚡ This isn’t luck. This is the system.\n"
-        "🔥 Precision over noise. Every. Single. Time."
+        "Just hold. No overthinking, no early exit. Let the move develop properly."
     )
 
 
@@ -136,18 +123,13 @@ TP3 = EventConfig(
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _render_tp4(symbol: str) -> str:
-    s = _display_symbol(symbol)
     return (
-        f"🎯 TP4 DEMOLISHED 💰💰💰💰\n"
-        "━━━━━━━━━━━━━━━\n"
-        f"{s} — Fourth target taken.\n"
-        "Deep in the move. Premium profit secured. 💎\n"
+        "TP4 HIT 💥\n"
         "\n"
-        "Late entries are chasing the candle.\n"
-        "VIP entered before the move was visible. ⚡\n"
+        "Expansion is in progress ✔✔✔✔\n"
+        "Price is accelerating and liquidity is being delivered.\n"
         "\n"
-        "🏆 This is what a top-tier room looks like.\n"
-        "🔥 No noise. No chase. Just results."
+        "Stay disciplined — don’t chase, don’t adjust emotionally. You’re already positioned."
     )
 
 
@@ -165,18 +147,13 @@ TP4 = EventConfig(
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _render_tp5(symbol: str) -> str:
-    s = _display_symbol(symbol)
     return (
-        f"🎯 TP5 OBLITERATED 💰💰💰💰💰\n"
-        "━━━━━━━━━━━━━━━\n"
-        f"{s} — Five clean targets.\n"
-        "Every cent the market offered → claimed. 🧠\n"
+        "TP5 HIT ⚡\n"
         "\n"
-        "This is surgical-grade execution —\n"
-        "the kind hedge funds spend millions chasing.\n"
+        "High profit zone ✔\n"
+        "Most traders are already out by now.\n"
         "\n"
-        "⚡ VIP gets it. Daily.\n"
-        "🔥 Elite isn’t a word. It’s a track record."
+        "This is where discipline matters more than profit itself. Stick to plan."
     )
 
 
@@ -194,18 +171,13 @@ TP5 = EventConfig(
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _render_tp6(symbol: str) -> str:
-    s = _display_symbol(symbol)
     return (
-        f"🎯 TP6 ANNIHILATED 💰💰💰💰💰💰\n"
-        "━━━━━━━━━━━━━━━\n"
-        f"{s} — Sixth target down.\n"
-        "Rare air. The kind of run other channels fake screenshots of. 📸\n"
+        "TP6 HIT 🚀\n"
         "\n"
-        "We don’t post wins for clout —\n"
-        "we just keep hitting them.\n"
+        "Parabolic phase active\n"
+        "Volatility increases and emotions start to interfere.\n"
         "\n"
-        "⚡ Six clean prints. No fluff. No cope.\n"
-        "🏆 Inside the room — this is normal."
+        "Only structure matters here. Not feelings, not noise."
     )
 
 
@@ -224,19 +196,13 @@ TP6 = EventConfig(
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _render_tp7(symbol: str) -> str:
-    s = _display_symbol(symbol)
     return (
-        f"🏆 TP7 — FULL CLEAR 👑💰💰💰💰💰💰💰\n"
-        "━━━━━━━━━━━━━━━\n"
-        f"{s} — Seven targets. Maximum extraction.\n"
-        "The kind of trade other rooms will study for a week. 📈\n"
+        "TP7 HIT 💰\n"
         "\n"
-        "For VIP — it’s the standard.\n"
-        "For the rest — it’s a screenshot they’ll never replicate. 📸\n"
+        "Final target hit ✔\n"
+        "Full move completed from start to finish.\n"
         "\n"
-        "⚡ Surgical precision. Full conviction.\n"
-        "🔥 This is the ceiling. This is the bar.\n"
-        "👑 Top of the food chain."
+        "Close according to plan, log it, and move on. Execution is the real edge."
     )
 
 
