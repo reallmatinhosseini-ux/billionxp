@@ -6,15 +6,7 @@ from app.events import render_event
 from app.parser import ParsedSignal
 
 
-_TP_ICONS = ("🥉", "🥈", "🥇", "🏆", "💎", "👑", "⚡")
-
-_DIVIDER = "━━━━━━━━━━━━━━━━━━━━"
-
-_VIP_FOOTER = (
-    "🔥 Trade the plan. Always.",
-    "🛡 Capital is the weapon — protect it.",
-    "🚀 Patience pays. Let winners run.",
-)
+_DIVIDER = "━━━━━━━━━━━━━━━"
 
 
 def _display(symbol: str) -> str:
@@ -22,49 +14,63 @@ def _display(symbol: str) -> str:
     return "GOLD" if s == "XAUUSD" else s
 
 
+def _direction_dot(direction: str) -> str:
+    return "🟢" if direction.upper() == "BUY" else "🔴"
+
+
+def _resolve_order_type(order_type: str, entry_min: float, entry_max: float) -> str:
+    ot = (order_type or "").strip().upper()
+    if ot in {"LIMIT", "MARKET", "STOP"}:
+        return ot
+    return "LIMIT" if entry_min != entry_max else "MARKET"
+
+
+def _entry_value(sig: ParsedSignal) -> str:
+    if sig.entry_min != sig.entry_max:
+        return f"{sig.entry_min:g} → {sig.entry_max:g}"
+    return f"{sig.entry_min:g}"
+
+
 def fmt_pair_title(direction: str, symbol_display: str) -> str:
-    direction = direction.upper()
-    if direction == "BUY":
-        return f"🚨🟢 {symbol_display} BUY SIGNAL 🟢🚨"
-    return f"🚨🔴 {symbol_display} SELL SIGNAL 🔴🚨"
+    return f"{_direction_dot(direction)} {symbol_display} {direction.upper()}"
+
+
+def _core_signal_block(
+    sig: ParsedSignal,
+    *,
+    order_type: str,
+    market_insight: str,
+    risk_management: str,
+) -> str:
+    """Compact, scannable signal body. ~10 lines."""
+    display = _display(sig.symbol)
+    direction = sig.direction.upper()
+    ot = _resolve_order_type(order_type, sig.entry_min, sig.entry_max)
+
+    lines: List[str] = [
+        f"{_direction_dot(direction)} {display} {direction} {ot}",
+        _DIVIDER,
+        f"💎 Entry: {_entry_value(sig)}",
+        f"🛡 SL: {sig.sl:g}",
+        "",
+    ]
+    for idx in sig.tp_order:
+        lines.append(f"🎯 TP{idx}: {sig.tp_levels[idx]:g}")
+    if not sig.tp_order:
+        lines.append("🎯 TP: —")
+
+    insight = (market_insight or "").strip()
+    if insight:
+        lines += ["", f"📊 {insight}"]
+
+    risk = (risk_management or "").strip() or "Risk 1% max"
+    lines += ["", _DIVIDER, f"⚠️ {risk}"]
+    return "\n".join(lines)
 
 
 def format_signal_standard(sig: ParsedSignal) -> str:
-    display = _display(sig.symbol)
-    title = fmt_pair_title(sig.direction, display)
-
-    entry = (
-        f"💎 Entry Zone:  {sig.entry_min:g}  →  {sig.entry_max:g}"
-        if sig.entry_min != sig.entry_max
-        else f"💎 Entry:  {sig.entry_min:g}"
-    )
-
-    ordered = [(i, sig.tp_levels[i]) for i in sig.tp_order]
-
-    tp_section = ["🎯 PROFIT TARGETS"]
-    if ordered:
-        for idx, price in ordered:
-            icon = _TP_ICONS[min(idx - 1, len(_TP_ICONS) - 1)]
-            tp_section.append(f"{icon} TP{idx} → {price:g}")
-    else:
-        tp_section.append("▪ No targets provided")
-
-    sl = f"🛡 Stop Loss: {sig.sl:g}"
-
-    return "\n".join(
-        [
-            title,
-            _DIVIDER,
-            "",
-            entry,
-            "",
-            *tp_section,
-            "",
-            sl,
-            "",
-            _DIVIDER,
-            *_VIP_FOOTER,
-        ]
+    return _core_signal_block(
+        sig, order_type="", market_insight="", risk_management=""
     )
 
 
@@ -75,99 +81,29 @@ def format_signal_elite(
     market_insight: str = "",
     risk_management: str = "",
 ) -> str:
-    display = _display(sig.symbol)
-    direction = sig.direction.upper()
-
-    ot = order_type.strip().upper()
-    if ot not in {"LIMIT", "MARKET", "STOP"}:
-        ot = "LIMIT" if sig.entry_min != sig.entry_max else "MARKET"
-
-    title = f"🏆 VIP ELITE — {display} {direction} {ot} 🏆"
-
-    entry = (
-        f"{sig.entry_min:g}  →  {sig.entry_max:g}"
-        if sig.entry_min != sig.entry_max
-        else f"{sig.entry_min:g}"
+    return _core_signal_block(
+        sig,
+        order_type=order_type,
+        market_insight=market_insight,
+        risk_management=risk_management,
     )
-
-    ordered = [(i, sig.tp_levels[i]) for i in sig.tp_order]
-
-    tp_lines: List[str] = []
-    for idx, price in ordered:
-        icon = _TP_ICONS[min(idx - 1, len(_TP_ICONS) - 1)]
-        tp_lines.append(f"{icon} TP{idx} → {price:g}")
-    if not tp_lines:
-        tp_lines.append("🥉 TP1 → Not provided")
-
-    risk = risk_management.strip() or "Risk 1% per trade — never more."
-
-    blocks: List[str] = [
-        title,
-        _DIVIDER,
-        "",
-        "💎 ENTRY ZONE",
-        entry,
-        "",
-        "🎯 PROFIT TARGETS",
-        *tp_lines,
-    ]
-
-    if len(ordered) > 1:
-        blocks += ["", "🚀 RUNNER ACTIVE — Multi-target play. Hold for the move."]
-
-    blocks += [
-        "",
-        "🛡 STOP LOSS",
-        f"{sig.sl:g}",
-    ]
-
-    if market_insight.strip():
-        blocks += [
-            "",
-            "📊 MARKET INSIGHT",
-            market_insight.strip(),
-        ]
-
-    blocks += [
-        "",
-        "⚠️ RISK MANAGEMENT",
-        risk,
-        "",
-        _DIVIDER,
-        *_VIP_FOOTER,
-    ]
-
-    # Collapse runs of blank lines for clean spacing.
-    out: List[str] = []
-    for line in blocks:
-        if line == "" and (not out or out[-1] == ""):
-            continue
-        out.append(line)
-    return "\n".join(out)
 
 
 def add_vip_header(body: str) -> str:
-    return (
-        "🔥 VIP EXCLUSIVE — INNER CIRCLE ONLY 🔥\n"
-        "💎 Real-time. Real edge. Zero noise.\n"
-        f"{_DIVIDER}\n"
-        "\n"
-        f"{body}"
-    )
+    return f"🔥 VIP EXCLUSIVE 🔥\n{body}"
 
 
 def add_free_cta(body: str, username: str) -> str:
-    """Free-channel CTA — built to convert. Strong FOMO without spam."""
+    """Free-channel CTA — short, sharp, max FOMO."""
     username = username.strip().lstrip("@")
     cta = (
-        "\n"
+        "\n\n"
         f"{_DIVIDER}\n"
-        "🚨 You’re reading this on the FREE channel.\n"
-        "🏆 VIP members had it the moment it printed.\n"
-        "💎 Stop trading the leftovers — get the first call, every time.\n"
-        "\n"
-        f"📩 DM for VIP access → @{username}\n"
-        "⏳ Seats are limited. Doors close without warning."
+        "⏰ You’re seeing this LATE.\n"
+        "🏆 VIP got the call first — they always do.\n"
+        "💎 Limited seats. No second chances.\n"
+        "🚪 Doors close without warning.\n"
+        f"📩 DM @{username} for VIP access."
     )
     return body + cta
 
