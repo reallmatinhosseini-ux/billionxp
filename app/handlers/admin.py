@@ -20,13 +20,14 @@ _DM_CALLBACK = F.message.chat.type == ChatType.PRIVATE
 async def cmd_settings(message: Message, app_ctx: AppContext) -> None:
     s = app_ctx.settings
     lines = (
-        "Bot configuration",
-        f"CHECK_INTERVAL_SECONDS: {s.check_interval_seconds:g}",
-        f"VIP_CHANNEL_ID: {s.vip_channel_id or '(unset)'}",
-        f"FREE_CHANNEL_ID: {s.free_channel_id or '(unset)'}",
-        f"FREE_CTA_USERNAME: {s.free_cta_username or '(unset)'}",
-        f"PRICE_PROVIDER: {s.price_provider}",
-        f"Admins: {len(s.admin_ids)}",
+        "⚙️ COMMAND CENTER — CONFIGURATION",
+        "━━━━━━━━━━━━━━━━━━━━",
+        f"⏱  Tracker interval: {s.check_interval_seconds:g}s",
+        f"🏆 VIP channel:      {s.vip_channel_id or '⚠️ unset'}",
+        f"🌐 Public channel:   {s.free_channel_id or '⚠️ unset'}",
+        f"📩 Free CTA handle:  @{s.free_cta_username}" if s.free_cta_username else "📩 Free CTA handle:  ⚠️ unset",
+        f"📈 Price feed:       {s.price_provider}",
+        f"🛡 Operators:        {len(s.admin_ids)}",
     )
     await message_answer_logged(message, "\n".join(lines))
 
@@ -53,14 +54,20 @@ def _progress_badges(r: SignalRecord) -> str:
 async def cmd_active(message: Message, app_ctx: AppContext) -> None:
     rows = await app_ctx.db.fetch_active_signals()
     if not rows:
-        await message_answer_logged(message, "No active signals.")
+        await message_answer_logged(
+            message,
+            "📡 No live trades right now.\nNext setup is loading… stay sharp. 🎯",
+        )
         return
 
-    lines: list[str] = ["Active signals:\n"]
+    lines: list[str] = [
+        "📡 LIVE TRADES — TRACKING",
+        "━━━━━━━━━━━━━━━━━━━━",
+    ]
     for r in rows:
         lines.append(
-            f"#{r.id} {r.symbol} {r.direction} | channel={r.channel_type} | "
-            f"msg={r.telegram_message_id}\n    {_progress_badges(r)}"
+            f"#{r.id}  {r.symbol} {r.direction}  •  {r.channel_type.upper()}  •  msg {r.telegram_message_id}\n"
+            f"     {_progress_badges(r)}"
         )
     await message_answer_logged(message, "\n".join(lines))
 
@@ -69,13 +76,16 @@ async def cmd_active(message: Message, app_ctx: AppContext) -> None:
 async def cmd_history(message: Message, app_ctx: AppContext) -> None:
     rows = await app_ctx.db.fetch_recent_signals(limit=15)
     if not rows:
-        await message_answer_logged(message, "No signals on record.")
+        await message_answer_logged(message, "📜 No operations on record yet.")
         return
-    lines: list[str] = ["Recent signals (latest 15):\n"]
+    lines: list[str] = [
+        "📜 RECENT OPERATIONS — LAST 15",
+        "━━━━━━━━━━━━━━━━━━━━",
+    ]
     for r in rows:
         lines.append(
-            f"#{r.id} [{r.status}] {r.symbol} {r.direction} | "
-            f"{_progress_badges(r)}"
+            f"#{r.id}  [{r.status.upper()}]  {r.symbol} {r.direction}\n"
+            f"     {_progress_badges(r)}"
         )
     await message_answer_logged(message, "\n".join(lines))
 
@@ -89,14 +99,19 @@ async def cmd_close(message: Message, app_ctx: AppContext) -> None:
     sid = int(parts[1].strip())
     rec = await app_ctx.db.fetch_signal_by_id(sid)
     if not rec:
-        await message_answer_logged(message, "Unknown id.")
+        await message_answer_logged(message, "❓ Unknown signal id.")
         return
     if rec.status != "active":
-        await message_answer_logged(message, f"Signal #{sid} is already {rec.status}.")
+        await message_answer_logged(
+            message, f"⚠️ Signal #{sid} is already {rec.status.upper()}."
+        )
         return
 
     await app_ctx.db.update_hits_and_status(sid, status="closed")
-    await message_answer_logged(message, f"Signal #{sid} marked closed. Tracking stopped.")
+    await message_answer_logged(
+        message,
+        f"🛑 Signal #{sid} closed. Tracking stopped. ✅",
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────

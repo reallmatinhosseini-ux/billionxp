@@ -13,7 +13,10 @@ from utils.security import is_admin
 
 log = get_logger(__name__)
 
-_DENIED = "You are not allowed to use this bot."
+_DENIED = (
+    "🔒 Access denied.\n"
+    "This bot is restricted to authorized operators only."
+)
 
 
 @dataclass
@@ -72,8 +75,9 @@ class AdminOnlyMiddleware(BaseMiddleware):
 
         if not self._settings.admin_ids:
             hint = (
-                "This bot has no ADMIN_IDS set in `.env`. Add your numeric Telegram "
-                "user IDs (comma-separated), restart the bot, then try again."
+                "⚠️ No operators configured.\n"
+                "Set ADMIN_IDS in `.env` (comma-separated Telegram user IDs), "
+                "restart the bot, then try again."
             )
             if isinstance(event, Message):
                 try:

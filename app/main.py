@@ -36,12 +36,12 @@ def assemble_dispatcher(settings, ctx: AppContext) -> Dispatcher:
 
 
 _BOT_COMMANDS: tuple[BotCommand, ...] = (
-    BotCommand(command="menu", description="Open the main menu"),
-    BotCommand(command="tp", description="TP Sender (TP1–TP7 / SL HIT)"),
-    BotCommand(command="active", description="List active tracked signals"),
-    BotCommand(command="history", description="Recent signals"),
-    BotCommand(command="settings", description="Show bot configuration"),
-    BotCommand(command="help", description="Help / usage"),
+    BotCommand(command="menu", description="🎛 Open the command center"),
+    BotCommand(command="tp", description="📤 Fire TP / SL alert (TP Sender)"),
+    BotCommand(command="active", description="📡 Live tracked trades"),
+    BotCommand(command="history", description="📜 Recent operations"),
+    BotCommand(command="settings", description="⚙️ Bot configuration"),
+    BotCommand(command="help", description="🆘 Help & usage"),
 )
 
 

@@ -76,11 +76,13 @@ async def ingest_signal(
     parsed_ok, extras, errors = parse_signal_any(raw_text)
     if parsed_ok is None:
         log.info("PARSE FAILED: %s", errors)
-        bullets = "\n".join(f"- {e}" for e in (errors or ["Unknown parsing error."]))
+        bullets = "\n".join(f"• {e}" for e in (errors or ["Unknown parsing error."]))
         explanation = (
-            "Could not parse this as a signal.\n\n"
-            "Tip: include direction (BUY/SELL), entry (one or two prices), SL, and at least one TP.\n\n"
-            "Details:\n" + bullets
+            "⚠️ Couldn’t lock onto a signal in that message.\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            "Need: direction (BUY/SELL), entry (1 or 2 prices), SL, and at least one TP.\n\n"
+            "Details:\n" + bullets + "\n\n"
+            "Drop a clean signal and I’ll format it instantly. 🚀"
         )
         await message_answer_logged(message, explanation)
         return
@@ -91,7 +93,13 @@ async def ingest_signal(
         parsed_ok,
         order_type=extras.order_type,
     )
-    preview_text = "Here is your formatted signal:\n\n" + body
+    preview_text = (
+        "🎯 SIGNAL LOCKED & LOADED\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "Premium format ready. Pick your destination. 👇\n"
+        "\n"
+        + body
+    )
     sent = await message_answer_logged(
         message,
         preview_text,
@@ -139,7 +147,7 @@ async def _persist(
             telegram_message_id=msg.message_id,
             telegram_chat_id=str(msg.chat.id),
         )
-        return f"VIP posted (#db {sid}, msg {msg.message_id})."
+        return f"🏆 VIP TRANSMITTED — db #{sid} · msg {msg.message_id} 🚀"
 
     if dest == "free":
         if not (s.free_cta_username.strip()):
@@ -165,7 +173,7 @@ async def _persist(
             telegram_message_id=msg.message_id,
             telegram_chat_id=str(msg.chat.id),
         )
-        return f"FREE posted (#db {sid}, msg {msg.message_id})."
+        return f"🌐 PUBLIC TRANSMITTED — db #{sid} · msg {msg.message_id} 🚀"
 
     raise ValueError("unknown destination")
 
@@ -210,7 +218,7 @@ async def choose_destination(
             await callback.answer()
         except Exception:
             log.exception("callback.answer (cancel)")
-        await finalize("Publishing cancelled.")
+        await finalize("🛑 Publish aborted. Signal not sent.")
         return
 
     data = await state.get_data()
@@ -223,13 +231,13 @@ async def choose_destination(
             log.exception("callback.answer session")
         if reply_dm:
             await message_answer_logged(
-                reply_dm, "Session expired. Paste the signal again."
+                reply_dm, "⌛ Session expired. Paste the signal again to relock."
             )
         elif callback.from_user:
             try:
                 await bot.send_message(
                     callback.from_user.id,
-                    "Session expired. Paste the signal again.",
+                    "⌛ Session expired. Paste the signal again to relock.",
                 )
             except Exception:
                 log.exception("send_message session-expired fallback")
@@ -247,13 +255,13 @@ async def choose_destination(
         if reply_dm:
             await message_answer_logged(
                 reply_dm,
-                "Session data was corrupted. Paste the signal again.",
+                "⚠️ Session data was corrupted. Paste the signal again.",
             )
         elif callback.from_user:
             try:
                 await bot.send_message(
                     callback.from_user.id,
-                    "Session data was corrupted. Paste the signal again.",
+                    "⚠️ Session data was corrupted. Paste the signal again.",
                 )
             except Exception:
                 log.exception("send_message corrupt-session fallback")

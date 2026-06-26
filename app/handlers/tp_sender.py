@@ -57,7 +57,10 @@ async def _start_flow(state: FSMContext, send_text) -> None:
     await state.clear()
     await state.set_state(TPSenderStates.choosing_channel)
     await send_text(
-        "📤 *TP Sender*\n\nWhich channel do you want to send the TP notification to?",
+        "📤 TP SENDER — LIVE 🚀\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "Where are we dropping this?\n"
+        "Pick a destination. 👇",
         reply_markup=tp_sender_channel_keyboard(),
     )
 
@@ -119,7 +122,7 @@ async def on_pick_channel(
                 await reply.edit_reply_markup(reply_markup=None)
             except Exception:
                 pass
-            await message_answer_logged(reply, "TP Sender cancelled.")
+            await message_answer_logged(reply, "🛑 TP Sender aborted. No transmission sent.")
         return
 
     if action not in _CHANNEL_LABELS:
@@ -139,7 +142,11 @@ async def on_pick_channel(
             pass
         await message_answer_logged(
             reply,
-            f"Destination: {_CHANNEL_LABELS[action]}\n\nWhich TP level has been hit?",
+            (
+                f"🎯 Destination locked → {_CHANNEL_LABELS[action]}\n"
+                "━━━━━━━━━━━━━━━━━━━━\n"
+                "Which level just got smashed? 🔥"
+            ),
             reply_markup=tp_sender_level_keyboard(),
         )
 
@@ -169,7 +176,7 @@ async def on_pick_level(
                 await reply.edit_reply_markup(reply_markup=None)
             except Exception:
                 pass
-            await message_answer_logged(reply, "TP Sender cancelled.")
+            await message_answer_logged(reply, "🛑 TP Sender aborted. No transmission sent.")
         return
 
     event = get_event(code)
@@ -201,10 +208,14 @@ async def on_pick_level(
         await message_answer_logged(
             reply,
             (
-                f"Ready to post → {_CHANNEL_LABELS[channel]}\n"
-                f"Event: {event.label}\n\n"
-                "Preview:\n\n"
-                f"{preview}"
+                "🚀 READY TO DEPLOY\n"
+                "━━━━━━━━━━━━━━━━━━━━\n"
+                f"📡 Channel: {_CHANNEL_LABELS[channel]}\n"
+                f"🎯 Event:   {event.label}\n"
+                "━━━━━━━━━━━━━━━━━━━━\n"
+                "📝 Preview:\n\n"
+                f"{preview}\n\n"
+                "Hit ✅ Send to fire it. Hit ❌ Cancel to abort."
             ),
             reply_markup=tp_sender_confirm_keyboard(),
         )
@@ -269,7 +280,7 @@ async def on_confirm(
                 await reply.edit_reply_markup(reply_markup=None)
             except Exception:
                 pass
-            await message_answer_logged(reply, "TP Sender cancelled.")
+            await message_answer_logged(reply, "🛑 TP Sender aborted. No transmission sent.")
         return
 
     if action != "send":
@@ -298,9 +309,13 @@ async def on_confirm(
             pass
         parts: list[str] = []
         if successes:
-            parts.append(f"✅ Sent ({event.label}) → {', '.join(successes)}")
+            parts.append(
+                f"🚀 TRANSMITTED — {event.label}\n"
+                f"📡 Delivered to: {', '.join(successes)}\n"
+                "Members are seeing it now. 💎"
+            )
         if errors:
-            parts.append("⚠️ Errors:\n" + "\n".join(f"- {e}" for e in errors))
+            parts.append("⚠️ Issues:\n" + "\n".join(f"• {e}" for e in errors))
         await message_answer_logged(
             reply, "\n\n".join(parts) if parts else "Nothing sent."
         )

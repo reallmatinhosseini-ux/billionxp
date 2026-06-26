@@ -60,17 +60,17 @@ async def _post_to_channel(
 
     if action == "cancel":
         await db.set_alert_status(alert_id, "cancelled")
-        return "Cancelled."
+        return "🛑 Alert suppressed. Nothing sent to the channel."
 
     sig = await db.fetch_signal_by_id(alert.signal_id)
     if not sig:
         await db.set_alert_status(alert_id, "cancelled")
-        return "Signal not found. Cancelled."
+        return "❓ Signal not found. Alert cancelled."
 
     event = get_event(alert.kind)
     if event is None:
         await db.set_alert_status(alert_id, "cancelled")
-        return f"Unknown event kind '{alert.kind}'. Cancelled."
+        return f"❓ Unknown event '{alert.kind}'. Alert cancelled."
 
     text = event.render(sig.symbol)
     await bot.send_message(
@@ -87,7 +87,7 @@ async def _post_to_channel(
     if event.is_take_profit:
         await _maybe_mark_completed(db, sig)
 
-    return f"Sent to channel ({event.label})."
+    return f"🚀 BROADCAST LIVE — {event.label} pushed to channel. 💎"
 
 
 @router.callback_query(F.data.startswith("alert:"), _DM_CALLBACK)

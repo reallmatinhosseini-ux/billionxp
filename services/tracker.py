@@ -33,12 +33,14 @@ async def _send_admin_alerts(
 
 def _admin_alert_header(sig: SignalRecord, event: EventConfig) -> str:
     return (
-        "⚠️ Follow-up pending approval\n"
-        f"Signal #{sig.id} {sig.symbol} {sig.direction}\n"
-        f"Event: {event.label}\n"
-        f"Channel msg: {sig.telegram_chat_id}:{sig.telegram_message_id}\n"
-        "\n"
-        "Click SEND to post in channel, or CANCEL."
+        "🚨 LIVE EVENT DETECTED — APPROVAL NEEDED\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        f"🎯 Event:  {event.label}\n"
+        f"📊 Trade:  #{sig.id}  {sig.symbol} {sig.direction}\n"
+        f"📨 Thread: {sig.telegram_chat_id}:{sig.telegram_message_id}\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "Tap ✅ SEND to broadcast to the channel.\n"
+        "Tap ❌ CANCEL to suppress."
     )
 
 

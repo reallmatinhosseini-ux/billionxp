@@ -18,15 +18,27 @@ _DM_CALLBACK = F.message.chat.type == ChatType.PRIVATE
 
 
 _WELCOME = (
-    "✅ BillionXP bot is live.\n"
+    "🏆 BillionXP — Operator Console LIVE 🟢\n"
+    "━━━━━━━━━━━━━━━━━━━━\n"
     "\n"
-    "What you can do:\n"
-    "• Paste a raw signal to format & publish\n"
-    "• /tp — TP Sender (manual TP1–TP7 / SL post)\n"
-    "• /active — list active tracked signals\n"
-    "• /history — recent signals\n"
-    "• /menu — open the inline menu\n"
-    "• /settings — show non-secret config\n"
+    "You’re in the engine room. Speed wins. Discipline pays. 💎\n"
+    "\n"
+    "⚡ What you can do:\n"
+    "• Paste a raw signal → premium formatting + 1-tap publish 🚀\n"
+    "• /tp — TP Sender: fire TP1–TP7 / SL HIT to any channel 🎯\n"
+    "• /active — live tracked trades 📡\n"
+    "• /history — recent operations 📜\n"
+    "• /menu — open the command center 🎛\n"
+    "• /settings — bot configuration ⚙️\n"
+    "\n"
+    "Let’s go to work. 🦾"
+)
+
+
+_MENU_HEADER = (
+    "🎛 BillionXP — Command Center\n"
+    "━━━━━━━━━━━━━━━━━━━━\n"
+    "Pick your move. ⚡"
 )
 
 
@@ -38,9 +50,9 @@ async def cmd_start(message: Message) -> None:
 
 @router.message(Command("ping"), _DM)
 async def cmd_ping(message: Message) -> None:
-    await message_answer_logged(message, "pong")
+    await message_answer_logged(message, "🟢 pong — engine online.")
 
 
 @router.message(Command("menu"), _DM)
 async def cmd_menu(message: Message) -> None:
-    await message_answer_logged(message, "Main menu:", reply_markup=main_menu_keyboard())
+    await message_answer_logged(message, _MENU_HEADER, reply_markup=main_menu_keyboard())
