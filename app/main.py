@@ -97,3 +97,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+# Channel IDs (@username format or numeric -123456789)
