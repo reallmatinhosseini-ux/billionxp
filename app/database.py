@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS signals (
     tp4_hit INTEGER NOT NULL DEFAULT 0,
     tp5_hit INTEGER NOT NULL DEFAULT 0,
     sl_hit INTEGER NOT NULL DEFAULT 0,
+    be_hit INTEGER NOT NULL DEFAULT 0,
     sl_moved_to_be INTEGER NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'active',
     channel_type TEXT NOT NULL,
@@ -47,6 +48,13 @@ CREATE INDEX IF NOT EXISTS idx_alerts_status ON alerts(status);
 """
 
 
+# Idempotent column additions for existing DBs. SQLite has no ADD COLUMN
+# IF NOT EXISTS, so the runner swallows "duplicate column" failures.
+_MIGRATIONS: tuple[str, ...] = (
+    "ALTER TABLE signals ADD COLUMN be_hit INTEGER NOT NULL DEFAULT 0",
+)
+
+
 @dataclass(frozen=True)
 class SignalRecord:
     id: int
@@ -66,6 +74,7 @@ class SignalRecord:
     tp4_hit: bool
     tp5_hit: bool
     sl_hit: bool
+    be_hit: bool
     sl_moved_to_be: bool
     status: str
     channel_type: str
@@ -92,6 +101,12 @@ class Database:
     async def init_schema(self) -> None:
         async with aiosqlite.connect(self._path) as db:
             await db.executescript(_SCHEMA)
+            for stmt in _MIGRATIONS:
+                try:
+                    await db.execute(stmt)
+                except Exception:
+                    # column already exists on this DB
+                    pass
             await db.commit()
 
     async def insert_signal(
@@ -178,6 +193,7 @@ class Database:
         tp4_hit: bool | None = None,
         tp5_hit: bool | None = None,
         sl_hit: bool | None = None,
+        be_hit: bool | None = None,
         sl_moved_to_be: bool | None = None,
         status: str | None = None,
     ) -> None:
@@ -190,6 +206,7 @@ class Database:
             ("tp4_hit", tp4_hit),
             ("tp5_hit", tp5_hit),
             ("sl_hit", sl_hit),
+            ("be_hit", be_hit),
             ("sl_moved_to_be", sl_moved_to_be),
             ("status", status),
         ]
@@ -289,6 +306,7 @@ def _row_to_record(r: aiosqlite.Row) -> SignalRecord:
         tp4_hit=bool(r["tp4_hit"]),
         tp5_hit=bool(r["tp5_hit"]),
         sl_hit=bool(r["sl_hit"]),
+        be_hit=bool(r["be_hit"]),
         sl_moved_to_be=bool(r["sl_moved_to_be"]),
         status=str(r["status"]),
         channel_type=str(r["channel_type"]),

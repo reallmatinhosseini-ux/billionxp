@@ -6,9 +6,9 @@ from dataclasses import dataclass
 from aiogram import Bot
 from aiogram.types import ReplyParameters
 
-from app.database import AlertRecord, Database, SignalRecord
-from app.formatter import format_sl_followup, format_tp_followup
 from app.config import Settings
+from app.database import Database, SignalRecord
+from app.events import EventConfig, all_take_profits, get_event
 from app.keyboards import followup_approval_keyboard
 from services.price_provider import PriceProvider
 from utils.logger import get_logger
@@ -17,23 +17,7 @@ log = get_logger(__name__)
 
 
 def _reply_params(sig: SignalRecord) -> ReplyParameters:
-    # Reply threading only when numeric message id fits Telegram rules.
     return ReplyParameters(message_id=sig.telegram_message_id)
-
-
-async def _mark_tp_hit(db: Database, signal_id: int, idx: int) -> None:
-    if idx == 1:
-        await db.update_hits_and_status(
-            signal_id, tp1_hit=True, sl_moved_to_be=True
-        )
-    elif idx == 2:
-        await db.update_hits_and_status(signal_id, tp2_hit=True)
-    elif idx == 3:
-        await db.update_hits_and_status(signal_id, tp3_hit=True)
-    elif idx == 4:
-        await db.update_hits_and_status(signal_id, tp4_hit=True)
-    else:
-        await db.update_hits_and_status(signal_id, tp5_hit=True)
 
 
 async def _send_admin_alerts(
@@ -47,15 +31,62 @@ async def _send_admin_alerts(
             log.exception("Failed to DM admin %s for alert %s", admin_id, alert_id)
 
 
-def _admin_alert_header(sig: SignalRecord, kind: str) -> str:
+def _admin_alert_header(sig: SignalRecord, event: EventConfig) -> str:
     return (
         "⚠️ Follow-up pending approval\n"
         f"Signal #{sig.id} {sig.symbol} {sig.direction}\n"
-        f"Event: {kind.upper()}\n"
+        f"Event: {event.label}\n"
         f"Channel msg: {sig.telegram_chat_id}:{sig.telegram_message_id}\n"
         "\n"
         "Click SEND to post in channel, or CANCEL."
     )
+
+
+async def _queue_alert(
+    bot: Bot,
+    settings: Settings,
+    db: Database,
+    sig: SignalRecord,
+    event: EventConfig,
+) -> bool:
+    """Create a pending alert if none exists, DM admins for approval."""
+    pending = await db.fetch_pending_alert_for_signal(sig.id, event.code)
+    if pending is not None:
+        return False
+    alert_id = await db.create_pending_alert(sig.id, event.code)
+    if not alert_id:
+        return False
+    body = event.render(sig.symbol)
+    text = _admin_alert_header(sig, event) + "\n\n" + body
+    await _send_admin_alerts(bot, settings, text, alert_id)
+    return True
+
+
+def _sl_triggered(sig: SignalRecord, price: float) -> bool:
+    if sig.direction.upper() == "BUY":
+        return price <= sig.sl
+    return price >= sig.sl
+
+
+def _tp_reached(sig: SignalRecord, level: float, price: float) -> bool:
+    if sig.direction.upper() == "BUY":
+        return price >= level
+    return price <= level
+
+
+def _entry_midpoint(sig: SignalRecord) -> float:
+    return (sig.entry_min + sig.entry_max) / 2.0
+
+
+def _be_triggered(sig: SignalRecord, price: float) -> bool:
+    """
+    BE triggers once TP1 is hit (SL has been moved to entry).
+    BUY: price drops back into/under the entry zone.
+    SELL: price rallies back into/over the entry zone.
+    """
+    if sig.direction.upper() == "BUY":
+        return price <= _entry_midpoint(sig)
+    return price >= _entry_midpoint(sig)
 
 
 async def evaluate_price_tick(
@@ -65,57 +96,36 @@ async def evaluate_price_tick(
     sig: SignalRecord,
     price: float,
 ) -> None:
-    d = sig.direction.upper()
-    tp_getters = [(1, sig.tp1), (2, sig.tp2), (3, sig.tp3), (4, sig.tp4), (5, sig.tp5)]
-    tp_defined = [(i, t) for i, t in tp_getters if t is not None]
+    # 1) Stop loss dominates if SL is still the active stop (TP1 not yet hit).
+    if not sig.sl_hit and not sig.be_hit and not sig.sl_moved_to_be:
+        if _sl_triggered(sig, price):
+            event = get_event("sl")
+            if event is not None:
+                await _queue_alert(bot, settings, db, sig, event)
+            return
 
-    def tp_flag(i: int) -> bool:
-        return bool(getattr(sig, f"tp{i}_hit"))
+    # 2) After TP1 has moved SL to entry, a retrace closes the trade at BE.
+    if sig.sl_moved_to_be and not sig.be_hit and not sig.sl_hit:
+        if _be_triggered(sig, price):
+            event = get_event("be")
+            if event is not None:
+                await _queue_alert(bot, settings, db, sig, event)
+            return
 
-    def sl_triggered(p: float) -> bool:
-        if d == "BUY":
-            return p <= sig.sl
-        return p >= sig.sl
-
-    def tp_hit_level(p: float, level: float) -> bool:
-        if d == "BUY":
-            return p >= level
-        return p <= level
-
-    # Stop loss dominates while still active tracking.
-    if not sig.sl_hit and sl_triggered(price):
-        kind = "sl"
-        pending = await db.fetch_pending_alert_for_signal(sig.id, kind)
-        if pending is None:
-            alert_id = await db.create_pending_alert(sig.id, kind)
-            if alert_id:
-                body = format_sl_followup(sig.symbol)
-                text = _admin_alert_header(sig, kind) + "\n\n" + body
-                await _send_admin_alerts(bot, settings, text, alert_id)
-        return
-
-    if sig.sl_hit:
-        return
-
-    # Take profits sequentially; never post automatically — require admin approval.
-    for idx, lvl in tp_defined:
-        if tp_flag(idx):
+    # 3) Take profits, sequentially. Only one TP event per tick.
+    for tp in all_take_profits():
+        if tp.tp_index is None:
             continue
-        if not tp_hit_level(price, lvl):
+        level = getattr(sig, f"tp{tp.tp_index}")
+        if level is None:
+            continue
+        if getattr(sig, f"tp{tp.tp_index}_hit"):
+            continue
+        if not _tp_reached(sig, float(level), price):
             break
 
-        kind = f"tp{idx}"
-        pending = await db.fetch_pending_alert_for_signal(sig.id, kind)
-        if pending is None:
-            alert_id = await db.create_pending_alert(sig.id, kind)
-            if alert_id:
-                body = format_tp_followup(sig.direction, idx, sig.symbol)
-                text = _admin_alert_header(sig, kind) + "\n\n" + body
-                await _send_admin_alerts(bot, settings, text, alert_id)
-        # Only one event per tick.
+        await _queue_alert(bot, settings, db, sig, tp)
         break
-
-    # Note: completion/closure happens only after admin approval updates hit flags.
 
 
 @dataclass

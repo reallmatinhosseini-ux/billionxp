@@ -9,8 +9,10 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from app.config import load_settings
 from app.database import Database
-from app.handlers import admin, signals, start
+from app.handlers import admin, followups, signals, start
 from app.middlewares import AdminOnlyMiddleware, AppContext, InjectContextMiddleware
+from services.price_provider import build_price_provider
+from services.tracker import TrackerService
 from utils.logger import get_logger
 
 log = get_logger(__name__)
@@ -19,13 +21,14 @@ log = get_logger(__name__)
 def assemble_dispatcher(settings, ctx: AppContext) -> Dispatcher:
     dp = Dispatcher(storage=MemoryStorage())
     dp.update.outer_middleware(InjectContextMiddleware(ctx))
-    # Per-observer middleware: `event` is Message / CallbackQuery, not Update (no .answer on Update).
+    # Per-observer middleware: `event` is Message / CallbackQuery, not Update.
     admin_gate = AdminOnlyMiddleware(settings)
     dp.message.middleware(admin_gate)
     dp.callback_query.middleware(admin_gate)
 
     dp.include_router(start.router)
     dp.include_router(signals.router)
+    dp.include_router(followups.router)
     dp.include_router(admin.router)
     return dp
 
@@ -46,8 +49,23 @@ async def amain() -> None:
     dp = assemble_dispatcher(settings, ctx)
 
     async with Bot(settings.bot_token, default=DefaultBotProperties()) as bot:
+        price_provider = build_price_provider(
+            settings.price_provider, api_key=settings.price_api_key
+        )
+        tracker = TrackerService(
+            settings=settings, db=db, bot=bot, price_provider=price_provider
+        )
+
         log.info("Polling started (%s)", db_path)
-        await dp.start_polling(bot)
+        tracker_task = asyncio.create_task(tracker.loop_forever(), name="tracker")
+        try:
+            await dp.start_polling(bot)
+        finally:
+            tracker_task.cancel()
+            try:
+                await tracker_task
+            except (asyncio.CancelledError, Exception):
+                pass
 
 
 def main() -> None:

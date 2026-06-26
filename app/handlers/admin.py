@@ -5,6 +5,8 @@ from aiogram.enums import ChatType
 from aiogram.filters import Command
 from aiogram.types import Message
 
+from app.database import SignalRecord
+from app.events import all_take_profits
 from app.middlewares import AppContext
 from app.replies import message_answer_logged
 
@@ -28,6 +30,24 @@ async def cmd_settings(message: Message, app_ctx: AppContext) -> None:
     await message_answer_logged(message, "\n".join(lines))
 
 
+def _progress_badges(r: SignalRecord) -> str:
+    badges: list[str] = []
+    for tp in all_take_profits():
+        if tp.tp_index is None:
+            continue
+        if getattr(r, f"tp{tp.tp_index}") is None:
+            continue
+        hit = getattr(r, f"tp{tp.tp_index}_hit")
+        badges.append(f"TP{tp.tp_index}{'✅' if hit else '·'}")
+    if r.sl_moved_to_be and not r.be_hit and not r.sl_hit:
+        badges.append("SL→BE")
+    if r.be_hit:
+        badges.append("BE✅")
+    if r.sl_hit:
+        badges.append("SL❌")
+    return " ".join(badges) if badges else "—"
+
+
 @router.message(Command("active"), _DM)
 async def cmd_active(message: Message, app_ctx: AppContext) -> None:
     rows = await app_ctx.db.fetch_active_signals()
@@ -37,14 +57,24 @@ async def cmd_active(message: Message, app_ctx: AppContext) -> None:
 
     lines: list[str] = ["Active signals:\n"]
     for r in rows:
-        tps = [
-            f"TP{i}"
-            for i in range(1, 6)
-            if getattr(r, f"tp{i}") is not None
-        ]
         lines.append(
             f"#{r.id} {r.symbol} {r.direction} | channel={r.channel_type} | "
-            f"msg={r.telegram_message_id} | {', '.join(tps)}"
+            f"msg={r.telegram_message_id}\n    {_progress_badges(r)}"
+        )
+    await message_answer_logged(message, "\n".join(lines))
+
+
+@router.message(Command("history"), _DM)
+async def cmd_history(message: Message, app_ctx: AppContext) -> None:
+    rows = await app_ctx.db.fetch_recent_signals(limit=15)
+    if not rows:
+        await message_answer_logged(message, "No signals on record.")
+        return
+    lines: list[str] = ["Recent signals (latest 15):\n"]
+    for r in rows:
+        lines.append(
+            f"#{r.id} [{r.status}] {r.symbol} {r.direction} | "
+            f"{_progress_badges(r)}"
         )
     await message_answer_logged(message, "\n".join(lines))
 

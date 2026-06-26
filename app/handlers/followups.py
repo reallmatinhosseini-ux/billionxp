@@ -4,8 +4,8 @@ from aiogram import F, Router
 from aiogram.enums import ChatType
 from aiogram.types import CallbackQuery
 
-from app.database import Database
-from app.formatter import format_sl_followup, format_tp_followup
+from app.database import Database, SignalRecord
+from app.events import EventConfig, all_take_profits, get_event
 from app.middlewares import AppContext
 from utils.logger import get_logger
 
@@ -16,7 +16,42 @@ router = Router(name="followups")
 _DM_CALLBACK = F.message.chat.type == ChatType.PRIVATE
 
 
-async def _post_to_channel(db: Database, bot, alert_id: int, action: str, app_ctx: AppContext) -> str:
+def _apply_event_flags(event: EventConfig) -> dict[str, object]:
+    """Translate an EventConfig into DB update kwargs."""
+    kw: dict[str, object] = {}
+    if event.is_take_profit and event.tp_index is not None:
+        kw[f"tp{event.tp_index}_hit"] = True
+    if event.moves_sl_to_be:
+        kw["sl_moved_to_be"] = True
+    if event.code == "sl":
+        kw["sl_hit"] = True
+    if event.code == "be":
+        kw["be_hit"] = True
+    if event.closes_signal:
+        kw["status"] = "closed"
+    return kw
+
+
+async def _maybe_mark_completed(db: Database, sig: SignalRecord) -> None:
+    """If every defined TP is hit, move the signal to completed."""
+    refreshed = await db.fetch_signal_by_id(sig.id)
+    if refreshed is None or refreshed.status != "active":
+        return
+    defined_tp_indexes = [
+        tp.tp_index
+        for tp in all_take_profits()
+        if tp.tp_index is not None
+        and getattr(refreshed, f"tp{tp.tp_index}") is not None
+    ]
+    if not defined_tp_indexes:
+        return
+    if all(getattr(refreshed, f"tp{i}_hit") for i in defined_tp_indexes):
+        await db.update_hits_and_status(refreshed.id, status="completed")
+
+
+async def _post_to_channel(
+    db: Database, bot, alert_id: int, action: str
+) -> str:
     alert = await db.fetch_alert_by_id(alert_id)
     if not alert:
         return "This alert no longer exists."
@@ -32,59 +67,27 @@ async def _post_to_channel(db: Database, bot, alert_id: int, action: str, app_ct
         await db.set_alert_status(alert_id, "cancelled")
         return "Signal not found. Cancelled."
 
-    kind = alert.kind.lower().strip()
-    if kind == "sl":
-        text = format_sl_followup(sig.symbol)
-        await bot.send_message(
-            chat_id=sig.telegram_chat_id,
-            text=text,
-            reply_parameters={"message_id": sig.telegram_message_id},
-        )
-        await db.update_hits_and_status(sig.id, sl_hit=True, status="closed")
-        await db.set_alert_status(alert_id, "sent")
-        return "Sent to channel (SL)."
+    event = get_event(alert.kind)
+    if event is None:
+        await db.set_alert_status(alert_id, "cancelled")
+        return f"Unknown event kind '{alert.kind}'. Cancelled."
 
-    if kind.startswith("tp") and kind[2:].isdigit():
-        idx = int(kind[2:])
-        if idx < 1 or idx > 5:
-            await db.set_alert_status(alert_id, "cancelled")
-            return "Invalid TP index. Cancelled."
+    text = event.render(sig.symbol)
+    await bot.send_message(
+        chat_id=sig.telegram_chat_id,
+        text=text,
+        reply_parameters={"message_id": sig.telegram_message_id},
+    )
 
-        text = format_tp_followup(sig.direction, idx, sig.symbol)
-        await bot.send_message(
-            chat_id=sig.telegram_chat_id,
-            text=text,
-            reply_parameters={"message_id": sig.telegram_message_id},
-        )
+    flags = _apply_event_flags(event)
+    if flags:
+        await db.update_hits_and_status(sig.id, **flags)  # type: ignore[arg-type]
+    await db.set_alert_status(alert_id, "sent")
 
-        kw: dict[str, object] = {}
-        if idx == 1:
-            kw["tp1_hit"] = True
-            kw["sl_moved_to_be"] = True
-        elif idx == 2:
-            kw["tp2_hit"] = True
-        elif idx == 3:
-            kw["tp3_hit"] = True
-        elif idx == 4:
-            kw["tp4_hit"] = True
-        else:
-            kw["tp5_hit"] = True
+    if event.is_take_profit:
+        await _maybe_mark_completed(db, sig)
 
-        await db.update_hits_and_status(sig.id, **kw)  # type: ignore[arg-type]
-        await db.set_alert_status(alert_id, "sent")
-
-        # If all defined TPs are hit, mark completed.
-        refreshed = await db.fetch_signal_by_id(sig.id)
-        if refreshed:
-            defined = [(1, refreshed.tp1), (2, refreshed.tp2), (3, refreshed.tp3), (4, refreshed.tp4), (5, refreshed.tp5)]
-            tp_defined = [i for i, v in defined if v is not None]
-            if tp_defined and all(getattr(refreshed, f"tp{i}_hit") for i in tp_defined):
-                await db.update_hits_and_status(refreshed.id, status="completed")
-
-        return f"Sent to channel (TP{idx})."
-
-    await db.set_alert_status(alert_id, "cancelled")
-    return "Unknown alert kind. Cancelled."
+    return f"Sent to channel ({event.label})."
 
 
 @router.callback_query(F.data.startswith("alert:"), _DM_CALLBACK)
@@ -92,7 +95,7 @@ async def on_followup_approval(
     callback: CallbackQuery,
     app_ctx: AppContext,
 ) -> None:
-    # callback data: alert:send:<id> | alert:cancel:<id>
+    # callback data format: alert:<send|cancel>:<id>
     data = callback.data or ""
     parts = data.split(":")
     if len(parts) != 3:
@@ -111,8 +114,13 @@ async def on_followup_approval(
         return
 
     try:
-        msg = await _post_to_channel(app_ctx.db, callback.bot, alert_id, action, app_ctx)
-        log.info("followup %s alert=%s by admin=%s", action, alert_id, callback.from_user.id if callback.from_user else None)
+        msg = await _post_to_channel(app_ctx.db, callback.bot, alert_id, action)
+        log.info(
+            "followup %s alert=%s by admin=%s",
+            action,
+            alert_id,
+            callback.from_user.id if callback.from_user else None,
+        )
         await callback.answer("OK")
         if callback.message:
             try:

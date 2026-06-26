@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from typing import List, Tuple
+
+from app.events import render_event
 from app.parser import ParsedSignal
 
 
@@ -153,36 +155,21 @@ def add_free_cta(body: str, username: str) -> str:
 
 
 def format_tp_followup(tp_index: int, symbol: str) -> str:
-    symbol = symbol.upper()
-    display = "GOLD" if symbol == "XAUUSD" else symbol
-
-    if tp_index == 1:
-        return f"""🎯 TP1 HIT — {display}
-
-✅ Partial profits secured
-🛡 Move SL to BE
-🚀 Let next target run"""
-
-    if tp_index == 2:
-        return f"""🚀 TP2 HIT — {display}
-
-💰 Profits locked
-📈 Momentum continues
-🔥 Hold runner"""
-
-    return f"""🏆 TP{tp_index} HIT — {display}
-
-💎 Major profit secured
-⚡ Trend still valid
-🚀 Let it run"""
+    """Backward-compatible TP renderer. Delegates to events registry."""
+    text = render_event(f"tp{tp_index}", symbol)
+    if text is None:
+        # Unknown TP index — fall back to a generic line rather than crashing.
+        sym = symbol.upper()
+        display = "GOLD" if sym == "XAUUSD" else sym
+        return f"🎯 TP{tp_index} HIT — {display}"
+    return text
 
 
 def format_sl_followup(symbol: str) -> str:
-    symbol = symbol.upper()
-    display = "GOLD" if symbol == "XAUUSD" else symbol
+    """Backward-compatible SL renderer. Delegates to events registry."""
+    return render_event("sl", symbol) or symbol
 
-    return f"""⛔ STOP LOSS HIT — {display}
 
-📉 Trade closed
-🛡 Capital protected
-🔥 Next setup coming"""
+def format_be_followup(symbol: str) -> str:
+    """Break-even renderer (price returned to entry after TP1)."""
+    return render_event("be", symbol) or symbol
