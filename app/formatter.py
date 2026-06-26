@@ -6,16 +6,14 @@ from app.events import render_event
 from app.parser import ParsedSignal
 
 
-_DIVIDER = "━━━━━━━━━━━━━━━"
+_ALLOWED_EMOJIS = ("🏆", "🎯", "🛡", "⚡", "🔥")
+
+_DEFAULT_DISCIPLINE = "Risk 1%. Trust the plan."
 
 
 def _display(symbol: str) -> str:
     s = (symbol or "").upper()
     return "GOLD" if s == "XAUUSD" else s
-
-
-def _direction_dot(direction: str) -> str:
-    return "🟢" if direction.upper() == "BUY" else "🔴"
 
 
 def _resolve_order_type(order_type: str, entry_min: float, entry_max: float) -> str:
@@ -25,14 +23,22 @@ def _resolve_order_type(order_type: str, entry_min: float, entry_max: float) -> 
     return "LIMIT" if entry_min != entry_max else "MARKET"
 
 
+def _direction_label(direction: str, order_type: str) -> str:
+    """`BUY LIMIT`, `SELL STOP`, or bare `BUY` for MARKET orders."""
+    d = direction.upper()
+    if order_type == "MARKET":
+        return d
+    return f"{d} {order_type}"
+
+
 def _entry_value(sig: ParsedSignal) -> str:
     if sig.entry_min != sig.entry_max:
-        return f"{sig.entry_min:g} → {sig.entry_max:g}"
+        return f"{sig.entry_min:g} – {sig.entry_max:g}"
     return f"{sig.entry_min:g}"
 
 
 def fmt_pair_title(direction: str, symbol_display: str) -> str:
-    return f"{_direction_dot(direction)} {symbol_display} {direction.upper()}"
+    return f"🏆 {symbol_display} • {direction.upper()}"
 
 
 def _core_signal_block(
@@ -42,29 +48,32 @@ def _core_signal_block(
     market_insight: str,
     risk_management: str,
 ) -> str:
-    """Compact, scannable signal body. ~10 lines."""
+    """Institutional-style block. Minimal, scannable, allowed emojis only."""
     display = _display(sig.symbol)
-    direction = sig.direction.upper()
     ot = _resolve_order_type(order_type, sig.entry_min, sig.entry_max)
+    direction_label = _direction_label(sig.direction, ot)
 
     lines: List[str] = [
-        f"{_direction_dot(direction)} {display} {direction} {ot}",
-        _DIVIDER,
-        f"💎 Entry: {_entry_value(sig)}",
-        f"🛡 SL: {sig.sl:g}",
+        f"🏆 {display} • {direction_label}",
+        "",
+        f"ENTRY : {_entry_value(sig)}",
         "",
     ]
     for idx in sig.tp_order:
-        lines.append(f"🎯 TP{idx}: {sig.tp_levels[idx]:g}")
+        lines.append(f"🎯 TP{idx} : {sig.tp_levels[idx]:g}")
     if not sig.tp_order:
-        lines.append("🎯 TP: —")
+        lines.append("🎯 TP : —")
+
+    lines += ["", f"🛡 SL : {sig.sl:g}"]
 
     insight = (market_insight or "").strip()
-    if insight:
-        lines += ["", f"📊 {insight}"]
+    discipline = (risk_management or "").strip() or _DEFAULT_DISCIPLINE
 
-    risk = (risk_management or "").strip() or "Risk 1% max"
-    lines += ["", _DIVIDER, f"⚠️ {risk}"]
+    lines.append("")
+    if insight:
+        lines.append(f"⚡ {insight}")
+    lines.append(f"🔥 {discipline}")
+
     return "\n".join(lines)
 
 
@@ -90,22 +99,14 @@ def format_signal_elite(
 
 
 def add_vip_header(body: str) -> str:
-    return f"🔥 VIP EXCLUSIVE 🔥\n{body}"
+    """VIP body needs no extra header — the 🏆 title already signals VIP-grade."""
+    return body
 
 
 def add_free_cta(body: str, username: str) -> str:
-    """Free-channel CTA — short, sharp, max FOMO."""
+    """Single-line institutional CTA. No marketing fluff."""
     username = username.strip().lstrip("@")
-    cta = (
-        "\n\n"
-        f"{_DIVIDER}\n"
-        "⏰ You’re seeing this LATE.\n"
-        "🏆 VIP got the call first — they always do.\n"
-        "💎 Limited seats. No second chances.\n"
-        "🚪 Doors close without warning.\n"
-        f"📩 DM @{username} for VIP access."
-    )
-    return body + cta
+    return f"{body}\n\n🏆 VIP access — @{username}"
 
 
 def format_tp_followup(tp_index: int, symbol: str) -> str:
