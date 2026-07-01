@@ -180,7 +180,8 @@ async def on_pick_level(
         return
 
     event = get_event(code)
-    if event is None or not (event.is_take_profit or event.code == "sl"):
+    _ALLOWED_MANUAL = {"sl", "full_tp"}
+    if event is None or not (event.is_take_profit or event.code in _ALLOWED_MANUAL):
         await callback.answer("Bad choice.", show_alert=True)
         return
 

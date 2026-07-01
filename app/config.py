@@ -31,7 +31,15 @@ class Settings:
     check_interval_seconds: float
     price_provider: str
     price_api_key: str
+    auto_approve_followups: bool = False
     sqlite_path: str = "signals.db"
+
+
+def _bool_env(name: str, default: bool = False) -> bool:
+    raw = (os.getenv(name, "") or "").strip().lower()
+    if not raw:
+        return default
+    return raw in {"1", "true", "yes", "on", "y"}
 
 
 def load_settings() -> Settings:
@@ -53,5 +61,6 @@ def load_settings() -> Settings:
         check_interval_seconds=interval,
         price_provider=(os.getenv("PRICE_PROVIDER", "mock") or "mock").strip().lower(),
         price_api_key=(os.getenv("PRICE_API_KEY", "") or "").strip(),
+        auto_approve_followups=_bool_env("AUTO_APPROVE_FOLLOWUPS", default=False),
         sqlite_path=(os.getenv("SQLITE_PATH", "signals.db") or "signals.db").strip(),
     )

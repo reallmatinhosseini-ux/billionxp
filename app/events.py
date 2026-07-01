@@ -50,11 +50,9 @@ def _display_symbol(symbol: str) -> str:
 def _render_tp1(symbol: str) -> str:
     return (
         "TP1 HIT 😎\n"
-        "\n"
-        "Initial target hit ✔\n"
-        "Price reacted clean to the setup, structure still valid and momentum aligned.\n"
-        "\n"
-        "Nothing to do here except stay patient. Don’t rush exits — first move is just confirmation, not the main profit phase."
+        "Target 1 secured ✔\n"
+        "First reaction confirmed. Structure intact.\n"
+        "No exit. Just validation."
     )
 
 
@@ -75,13 +73,9 @@ TP1 = EventConfig(
 def _render_tp2(symbol: str) -> str:
     return (
         "TP2 HIT 🚀\n"
-        "\n"
-        "Second target hit ✔✔\n"
-        "Continuation is strong, no structural damage.\n"
-        "\n"
-        "Risk is now removed (breakeven secured ⛔️), so the position is effectively risk-free.\n"
-        "\n"
-        "Let it run. Interfering here is where most traders destroy good trades."
+        "Momentum continues ✔\n"
+        "Risk off (BE locked ⛔️)\n"
+        "Let it breathe."
     )
 
 
@@ -101,11 +95,9 @@ TP2 = EventConfig(
 def _render_tp3(symbol: str) -> str:
     return (
         "TP3 HIT 🔥\n"
-        "\n"
-        "Trend is fully confirmed ✔✔✔\n"
-        "Market is still respecting direction with no real rejection.\n"
-        "\n"
-        "Just hold. No overthinking, no early exit. Let the move develop properly."
+        "Trend confirmed ✔\n"
+        "No weakness in structure.\n"
+        "Hold steady."
     )
 
 
@@ -125,11 +117,9 @@ TP3 = EventConfig(
 def _render_tp4(symbol: str) -> str:
     return (
         "TP4 HIT 💥\n"
-        "\n"
-        "Expansion is in progress ✔✔✔✔\n"
-        "Price is accelerating and liquidity is being delivered.\n"
-        "\n"
-        "Stay disciplined — don’t chase, don’t adjust emotionally. You’re already positioned."
+        "Expansion phase ✔\n"
+        "Price accelerating.\n"
+        "No emotional moves."
     )
 
 
@@ -149,11 +139,9 @@ TP4 = EventConfig(
 def _render_tp5(symbol: str) -> str:
     return (
         "TP5 HIT ⚡\n"
-        "\n"
         "High profit zone ✔\n"
-        "Most traders are already out by now.\n"
-        "\n"
-        "This is where discipline matters more than profit itself. Stick to plan."
+        "Most are out already.\n"
+        "You stay disciplined."
     )
 
 
@@ -173,11 +161,9 @@ TP5 = EventConfig(
 def _render_tp6(symbol: str) -> str:
     return (
         "TP6 HIT 🚀\n"
-        "\n"
-        "Parabolic phase active\n"
-        "Volatility increases and emotions start to interfere.\n"
-        "\n"
-        "Only structure matters here. Not feelings, not noise."
+        "Parabolic move ✔\n"
+        "Volatility rising.\n"
+        "Only structure matters."
     )
 
 
@@ -198,11 +184,9 @@ TP6 = EventConfig(
 def _render_tp7(symbol: str) -> str:
     return (
         "TP7 HIT 💰\n"
-        "\n"
-        "Final target hit ✔\n"
-        "Full move completed from start to finish.\n"
-        "\n"
-        "Close according to plan, log it, and move on. Execution is the real edge."
+        "Full extension ✔\n"
+        "Move completed clean.\n"
+        "Log it. Reset."
     )
 
 
@@ -213,6 +197,27 @@ TP7 = EventConfig(
     is_take_profit=True,
     tp_index=7,
     tracked=False,
+)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FULL TP — every defined target cleared (auto-fires after final TP)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _render_full_tp(symbol: str) -> str:
+    return (
+        "FULL TP HIT 🏁\n"
+        "All targets cleared ✔✔✔\n"
+        "Perfect execution from start to finish.\n"
+        "No hesitation, no interference — just pure follow-through.\n"
+        "That’s the edge."
+    )
+
+
+FULL_TP = EventConfig(
+    code="full_tp",
+    label="FULL TP HIT",
+    render=_render_full_tp,
 )
 
 
@@ -277,7 +282,7 @@ BE = EventConfig(
 # ─────────────────────────────────────────────────────────────────────────────
 
 _REGISTRY: Mapping[str, EventConfig] = {
-    e.code: e for e in (TP1, TP2, TP3, TP4, TP5, TP6, TP7, SL, BE)
+    e.code: e for e in (TP1, TP2, TP3, TP4, TP5, TP6, TP7, FULL_TP, SL, BE)
 }
 
 

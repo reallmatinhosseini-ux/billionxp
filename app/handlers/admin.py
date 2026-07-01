@@ -19,6 +19,7 @@ _DM_CALLBACK = F.message.chat.type == ChatType.PRIVATE
 @router.message(Command("settings"), _DM)
 async def cmd_settings(message: Message, app_ctx: AppContext) -> None:
     s = app_ctx.settings
+    auto = "ON — direct fire" if s.auto_approve_followups else "OFF — admin approval"
     lines = (
         "⚙️ COMMAND CENTER — CONFIGURATION",
         "━━━━━━━━━━━━━━━━━━━━",
@@ -27,6 +28,7 @@ async def cmd_settings(message: Message, app_ctx: AppContext) -> None:
         f"🌐 Public channel:   {s.free_channel_id or '⚠️ unset'}",
         f"📩 Free CTA handle:  @{s.free_cta_username}" if s.free_cta_username else "📩 Free CTA handle:  ⚠️ unset",
         f"📈 Price feed:       {s.price_provider}",
+        f"⚡ Auto-approve:     {auto}",
         f"🛡 Operators:        {len(s.admin_ids)}",
     )
     await message_answer_logged(message, "\n".join(lines))

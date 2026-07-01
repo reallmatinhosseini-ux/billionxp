@@ -4,9 +4,10 @@ from aiogram import F, Router
 from aiogram.enums import ChatType
 from aiogram.types import CallbackQuery
 
-from app.database import Database, SignalRecord
-from app.events import EventConfig, all_take_profits, get_event
+from app.database import Database
+from app.events import get_event
 from app.middlewares import AppContext
+from services.event_publisher import publish_event_to_channel
 from utils.logger import get_logger
 
 log = get_logger(__name__)
@@ -14,39 +15,6 @@ log = get_logger(__name__)
 router = Router(name="followups")
 
 _DM_CALLBACK = F.message.chat.type == ChatType.PRIVATE
-
-
-def _apply_event_flags(event: EventConfig) -> dict[str, object]:
-    """Translate an EventConfig into DB update kwargs."""
-    kw: dict[str, object] = {}
-    if event.is_take_profit and event.tp_index is not None:
-        kw[f"tp{event.tp_index}_hit"] = True
-    if event.moves_sl_to_be:
-        kw["sl_moved_to_be"] = True
-    if event.code == "sl":
-        kw["sl_hit"] = True
-    if event.code == "be":
-        kw["be_hit"] = True
-    if event.closes_signal:
-        kw["status"] = "closed"
-    return kw
-
-
-async def _maybe_mark_completed(db: Database, sig: SignalRecord) -> None:
-    """If every defined TP is hit, move the signal to completed."""
-    refreshed = await db.fetch_signal_by_id(sig.id)
-    if refreshed is None or refreshed.status != "active":
-        return
-    defined_tp_indexes = [
-        tp.tp_index
-        for tp in all_take_profits()
-        if tp.tp_index is not None
-        and getattr(refreshed, f"tp{tp.tp_index}") is not None
-    ]
-    if not defined_tp_indexes:
-        return
-    if all(getattr(refreshed, f"tp{i}_hit") for i in defined_tp_indexes):
-        await db.update_hits_and_status(refreshed.id, status="completed")
 
 
 async def _post_to_channel(
@@ -72,21 +40,8 @@ async def _post_to_channel(
         await db.set_alert_status(alert_id, "cancelled")
         return f"❓ Unknown event '{alert.kind}'. Alert cancelled."
 
-    text = event.render(sig.symbol)
-    await bot.send_message(
-        chat_id=sig.telegram_chat_id,
-        text=text,
-        reply_parameters={"message_id": sig.telegram_message_id},
-    )
-
-    flags = _apply_event_flags(event)
-    if flags:
-        await db.update_hits_and_status(sig.id, **flags)  # type: ignore[arg-type]
+    await publish_event_to_channel(bot, db, sig, event)
     await db.set_alert_status(alert_id, "sent")
-
-    if event.is_take_profit:
-        await _maybe_mark_completed(db, sig)
-
     return f"🚀 BROADCAST LIVE — {event.label} pushed to channel. 💎"
 
 

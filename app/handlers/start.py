@@ -42,6 +42,30 @@ _MENU_HEADER = (
 )
 
 
+_HELP = (
+    "🆘 BillionXP — Operator Guide\n"
+    "━━━━━━━━━━━━━━━━━━━━\n"
+    "\n"
+    "📥 Paste any raw signal → the bot formats it and asks where to publish.\n"
+    "\n"
+    "Core commands\n"
+    "• /menu — command center with buttons\n"
+    "• /tp — TP Sender: fire TP1–TP7, FULL TP, or SL HIT manually\n"
+    "• /active — live tracked trades with hit-status badges\n"
+    "• /history — last 15 signals\n"
+    "• /close <id> — stop tracking a signal (no channel post)\n"
+    "• /settings — show current configuration\n"
+    "• /ping — liveness check\n"
+    "\n"
+    "How tracking works\n"
+    "• Every tick, prices are checked against every active signal.\n"
+    "• TP / SL / BE hits are queued for admin approval (or auto-fired if\n"
+    "  AUTO_APPROVE_FOLLOWUPS=true).\n"
+    "• After the final TP posts, the FULL TP HIT summary fires automatically\n"
+    "  and the signal is marked completed."
+)
+
+
 @router.message(CommandStart(), _DM)
 async def cmd_start(message: Message) -> None:
     log.info("START handler called chat=%s user=%s", message.chat.id, message.from_user.id)
@@ -56,3 +80,8 @@ async def cmd_ping(message: Message) -> None:
 @router.message(Command("menu"), _DM)
 async def cmd_menu(message: Message) -> None:
     await message_answer_logged(message, _MENU_HEADER, reply_markup=main_menu_keyboard())
+
+
+@router.message(Command("help"), _DM)
+async def cmd_help(message: Message) -> None:
+    await message_answer_logged(message, _HELP)

@@ -10,6 +10,7 @@ from app.config import Settings
 from app.database import Database, SignalRecord
 from app.events import EventConfig, all_take_profits, get_event
 from app.keyboards import followup_approval_keyboard
+from services.event_publisher import publish_event_to_channel
 from services.price_provider import PriceProvider
 from utils.logger import get_logger
 
@@ -51,10 +52,27 @@ async def _queue_alert(
     sig: SignalRecord,
     event: EventConfig,
 ) -> bool:
-    """Create a pending alert if none exists, DM admins for approval."""
+    """
+    Emit an event. In manual mode, queue a pending alert and DM admins for
+    approval. In auto-approve mode, post directly to the channel.
+    Returns True if a new alert / broadcast was emitted.
+    """
+    # De-dupe: whether manual or auto, don't re-fire the same event repeatedly.
     pending = await db.fetch_pending_alert_for_signal(sig.id, event.code)
     if pending is not None:
         return False
+
+    if settings.auto_approve_followups:
+        # Direct fire — no approval, no alert row.
+        try:
+            await publish_event_to_channel(bot, db, sig, event)
+            log.info("auto-fired %s for signal %s", event.label, sig.id)
+        except Exception:
+            log.exception(
+                "auto-fire failed for signal %s event %s", sig.id, event.code
+            )
+        return True
+
     alert_id = await db.create_pending_alert(sig.id, event.code)
     if not alert_id:
         return False

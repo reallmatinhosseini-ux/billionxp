@@ -60,7 +60,7 @@ def tp_sender_channel_keyboard() -> InlineKeyboardMarkup:
 
 
 def tp_sender_level_keyboard() -> InlineKeyboardMarkup:
-    """Step 2 of TP Sender: pick TP1..TP7 or SL."""
+    """Step 2 of TP Sender: pick TP1..TP7, FULL TP, or SL."""
     tp_buttons = [
         InlineKeyboardButton(
             text=f"TP{e.tp_index}",
@@ -72,7 +72,12 @@ def tp_sender_level_keyboard() -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     for i in range(0, len(tp_buttons), 4):
         rows.append(tp_buttons[i : i + 4])
-    rows.append([InlineKeyboardButton(text="⛔️ SL HIT", callback_data="tps:lvl:sl")])
+    rows.append(
+        [
+            InlineKeyboardButton(text="🏁 FULL TP", callback_data="tps:lvl:full_tp"),
+            InlineKeyboardButton(text="⛔️ SL HIT", callback_data="tps:lvl:sl"),
+        ]
+    )
     rows.append([InlineKeyboardButton(text="❌ Cancel", callback_data="tps:lvl:cancel")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
