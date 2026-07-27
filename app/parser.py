@@ -32,6 +32,38 @@ _SL_KEYWORDS = re.compile(r"\b(sl|stop\s*loss|stops?)\b", re.IGNORECASE)
 _NUM_PATTERN = re.compile(_NUMBER)
 
 
+def _looks_like_numbering(smaller: float, larger: float) -> bool:
+    """
+    True when `smaller` next to `larger` is almost certainly a list index
+    rather than a real price — e.g. "Entry: 1 – 4089" or "1. 4089" where the
+    leading "1" is enumeration, not a bound of the entry zone.
+    """
+    if smaller <= 0 or smaller >= larger:
+        return False
+    # A 100×+ magnitude gap means one side is either garbage or an index.
+    if larger / smaller >= 100:
+        return True
+    # Small single-digit integer next to a plausible price line.
+    if smaller == int(smaller) and 1 <= smaller <= 9 and larger >= 50:
+        return True
+    return False
+
+
+def _normalize_entry_pair(a: float, b: float) -> tuple[float, float]:
+    """Order the pair and collapse an obvious numbering prefix to a single value."""
+    lo, hi = (a, b) if a <= b else (b, a)
+    if _looks_like_numbering(lo, hi):
+        return (hi, hi)
+    return (lo, hi)
+
+
+def _strip_numbering_prefix(nums: list[float]) -> list[float]:
+    """Drop a leading list-index number from a line like `1. 4089` / `2) 4095`."""
+    if len(nums) >= 2 and _looks_like_numbering(nums[0], max(nums[1:])):
+        return nums[1:]
+    return nums
+
+
 @dataclass
 class ParsedSignal:
     direction: str
@@ -78,8 +110,7 @@ def parse_signal(text: str) -> tuple[ParsedSignal | None, list[str]]:
         issues.append("Could not detect entry zone (e.g. 4594.4 → 4604.4 or 4594/4604).")
     else:
         a, b = entry_matches[0].group(1), entry_matches[0].group(2)
-        e1, e2 = float(a), float(b)
-        entry_min, entry_max = (e1, e2) if e1 <= e2 else (e2, e1)
+        entry_min, entry_max = _normalize_entry_pair(float(a), float(b))
 
     sl_match = _SL_PATTERN.search(cleaned)
     if not sl_match:
@@ -298,16 +329,16 @@ def _infer_entry(
     # Prefer explicit entry range patterns (with separators).
     m = _ENTRY_PATTERN.search(text)
     if m:
-        a, b = float(m.group(1)), float(m.group(2))
-        return (a, b)
+        return _normalize_entry_pair(float(m.group(1)), float(m.group(2)))
 
     # Look for entry-ish lines and pull 1-2 numbers.
     for line in text.splitlines():
         if not _ENTRY_KEYWORDS.search(line):
             continue
         nums = [float(x) for x in _NUM_PATTERN.findall(line)]
+        nums = _strip_numbering_prefix(nums)
         if len(nums) >= 2:
-            return nums[0], nums[1]
+            return _normalize_entry_pair(nums[0], nums[1])
         if len(nums) == 1:
             return nums[0], nums[0]
 
@@ -319,10 +350,10 @@ def _infer_entry(
     for v in tp_levels.values():
         exclude.add(float(v))
     candidates = [n for n in all_nums if n not in exclude]
+    candidates = _strip_numbering_prefix(candidates)
 
     if len(candidates) >= 2:
-        # Use the first two remaining numbers as an entry zone.
-        return candidates[0], candidates[1]
+        return _normalize_entry_pair(candidates[0], candidates[1])
     if len(candidates) == 1:
         return candidates[0], candidates[0]
     return None, None
