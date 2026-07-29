@@ -10,7 +10,7 @@ from aiogram.types import BotCommand
 
 from app.config import load_settings
 from app.database import Database
-from app.handlers import admin, followups, signals, start, tp_sender
+from app.handlers import admin, followups, signals, start
 from app.middlewares import AdminOnlyMiddleware, AppContext, InjectContextMiddleware
 from services.price_provider import build_price_provider
 from services.tracker import TrackerService
@@ -28,7 +28,6 @@ def assemble_dispatcher(settings, ctx: AppContext) -> Dispatcher:
     dp.callback_query.middleware(admin_gate)
 
     dp.include_router(start.router)
-    dp.include_router(tp_sender.router)
     dp.include_router(signals.router)
     dp.include_router(followups.router)
     dp.include_router(admin.router)
@@ -36,12 +35,10 @@ def assemble_dispatcher(settings, ctx: AppContext) -> Dispatcher:
 
 
 _BOT_COMMANDS: tuple[BotCommand, ...] = (
-    BotCommand(command="menu", description="🎛 Open the command center"),
-    BotCommand(command="tp", description="📤 Fire TP / SL alert (TP Sender)"),
-    BotCommand(command="active", description="📡 Live tracked trades"),
-    BotCommand(command="history", description="📜 Recent operations"),
-    BotCommand(command="settings", description="⚙️ Bot configuration"),
-    BotCommand(command="help", description="🆘 Help & usage"),
+    BotCommand(command="active", description="Live tracked trades"),
+    BotCommand(command="close", description="Stop tracking a signal: /close <id>"),
+    BotCommand(command="settings", description="Bot configuration"),
+    BotCommand(command="help", description="Help & usage"),
 )
 
 
@@ -97,4 +94,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-# Channel IDs (@username format or numeric -123456789)
