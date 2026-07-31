@@ -104,13 +104,30 @@ def parse_signal(text: str) -> tuple[ParsedSignal | None, list[str]]:
 
     symbol = _infer_symbol(cleaned, upper)
 
-    entry_matches = list(_ENTRY_PATTERN.finditer(cleaned))
     entry_min = entry_max = 0.0
-    if not entry_matches:
+    entry_found = False
+    for line in cleaned.splitlines():
+        if not _ENTRY_KEYWORDS.search(line):
+            continue
+        m = _ENTRY_PATTERN.search(line)
+        if m:
+            entry_min, entry_max = _normalize_entry_pair(
+                float(m.group(1)), float(m.group(2))
+            )
+            entry_found = True
+            break
+        nums = [float(x) for x in _NUM_PATTERN.findall(line)]
+        nums = _strip_numbering_prefix(nums)
+        if len(nums) >= 2:
+            entry_min, entry_max = _normalize_entry_pair(nums[0], nums[1])
+            entry_found = True
+            break
+        if len(nums) == 1:
+            entry_min = entry_max = nums[0]
+            entry_found = True
+            break
+    if not entry_found:
         issues.append("Could not detect entry zone (e.g. 4594.4 → 4604.4 or 4594/4604).")
-    else:
-        a, b = entry_matches[0].group(1), entry_matches[0].group(2)
-        entry_min, entry_max = _normalize_entry_pair(float(a), float(b))
 
     sl_match = _SL_PATTERN.search(cleaned)
     if not sl_match:
@@ -326,15 +343,15 @@ def _infer_entry(
     sl: float | None,
     tp_levels: dict[int, float],
 ) -> tuple[float | None, float | None]:
-    # Prefer explicit entry range patterns (with separators).
-    m = _ENTRY_PATTERN.search(text)
-    if m:
-        return _normalize_entry_pair(float(m.group(1)), float(m.group(2)))
-
-    # Look for entry-ish lines and pull 1-2 numbers.
+    # Only trust entry ranges that live on a line with an entry keyword.
+    # Scanning the whole text would false-match on unrelated fragments like
+    # "risk 3-5 pips" or "use 1 to 2 lots".
     for line in text.splitlines():
         if not _ENTRY_KEYWORDS.search(line):
             continue
+        m = _ENTRY_PATTERN.search(line)
+        if m:
+            return _normalize_entry_pair(float(m.group(1)), float(m.group(2)))
         nums = [float(x) for x in _NUM_PATTERN.findall(line)]
         nums = _strip_numbering_prefix(nums)
         if len(nums) >= 2:
@@ -342,7 +359,7 @@ def _infer_entry(
         if len(nums) == 1:
             return nums[0], nums[0]
 
-    # Fallback: infer from overall number set by excluding SL and TPs.
+    # No explicit entry keyword — fall back to numbers not claimed by SL/TPs.
     all_nums = [float(x) for x in _NUM_PATTERN.findall(text)]
     exclude: set[float] = set()
     if sl is not None:
